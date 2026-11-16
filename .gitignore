@@ -14,3 +14,4 @@ config.local.yaml
 
 # the vendor OpenAPI dump stays out of the repository
 .tmp-*.json
+/arcane-mcp
