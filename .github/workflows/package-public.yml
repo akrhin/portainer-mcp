@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: patch the container package
-        run: gh api -X PATCH "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/portainer-mcp" -f visibility=public
+        run: |
+          gh api "/user/packages?package_type=container" --jq '.[].name' || true
+          gh api -X PATCH "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/portainer-mcp" -f visibility=public
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
