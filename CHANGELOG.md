@@ -5,6 +5,36 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-11-16
+
+### Added
+
+- Full Arcane coverage: every one of the 444 operations in the OpenAPI document of
+  Arcane 3.0.1 is reachable through a tool, 445 in total with the `arcane_raw` extra,
+  up from 399. The catalog no longer drops an operation through `skip_tags`,
+  `skip_paths` or `skip_methods`, and a test compares the document against the
+  generated catalog so a skipped operation fails the build.
+- Four toolsets, all off by default: `uploads` (4), `push` (6), `events` (6, two of
+  them default) and `auth` (31). MFA, passkey and OIDC operations land in `auth` even
+  when they also carry the `Auth` tag, which stays in `admin`.
+- Streaming tools answer instead of hanging. `stream_client`,
+  `wait_for_environment_changes` and `stream_upgrade_progress` take `timeout_sec`
+  (integer, 10 by default, 1 to 60), read up to the deadline and return what arrived,
+  ending the text with `…[stream read stopped at timeout_sec: raise it to read longer]`.
+  The HTTP client gained `DoStream` for that.
+- `upload_chunk` sends raw bytes: a request body the document declares as
+  `application/octet-stream` takes `{"content": "text"}` or `{"base64": "..."}` and
+  goes out unchanged, through the new `DoRaw`.
+- `HEAD` operations became tools — `health_check_head` and `system_health_head` — so the
+  catalog matches the document operation for operation.
+
+### Changed
+
+- `tools/cataloggen` gained two mapping keys: `tag_priority`, which decides the toolset
+  before the operation's first tag, and `deadline_paths`, which marks the operations
+  read until a deadline. A body declared only as `application/octet-stream` is detected
+  from the document rather than configured.
+
 ## [0.3.0] - 2026-11-16
 
 ### Added

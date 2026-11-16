@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -26,7 +27,7 @@ func (e *env) call(t catalog.Tool) handler {
 	var query []string
 	props, _ := t.Input["properties"].(map[string]any)
 	for name := range props {
-		if name == "instance" || name == t.Operation.Body || pathParams[name] {
+		if name == "instance" || name == t.Operation.Body || pathParams[name] || name == streamTimeout {
 			continue
 		}
 		if t.Operation.Raw && (name == "method" || name == "path" || name == "query") {
@@ -103,6 +104,15 @@ func (e *env) call(t catalog.Tool) handler {
 				if err != nil {
 					return nil, fmt.Errorf("encode %s: %w", t.Operation.Body, err)
 				}
+			} else if t.Operation.Binary {
+				obj, ok := v.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("%s must be an object", t.Operation.Body)
+				}
+				body, err = binaryBody(obj)
+				if err != nil {
+					return nil, fmt.Errorf("encode %s: %w", t.Operation.Body, err)
+				}
 			} else {
 				body, err = json.Marshal(v)
 				if err != nil {
@@ -112,9 +122,14 @@ func (e *env) call(t catalog.Tool) handler {
 		}
 
 		var resp *portainer.Response
-		if t.Operation.Form {
+		switch {
+		case t.Operation.Form:
 			resp, err = c.DoForm(ctx, method, path, values, fields, files)
-		} else {
+		case t.Operation.Binary:
+			resp, err = c.DoRaw(ctx, method, path, values, "application/octet-stream", body)
+		case t.Stream:
+			resp, err = c.DoStream(ctx, method, path, values, streamDelay(args))
+		default:
 			resp, err = c.Do(ctx, method, path, values, body)
 		}
 		if err != nil {
@@ -157,6 +172,40 @@ func formParts(body map[string]any) (map[string]string, map[string]portainer.Fil
 		fields[name] = text
 	}
 	return fields, files, nil
+}
+
+// binaryBody reads a raw request body from {content} as text or {base64} as
+// binary — the same shape a multipart file part uses.
+func binaryBody(body map[string]any) ([]byte, error) {
+	if s, ok := body["content"].(string); ok {
+		return []byte(s), nil
+	}
+	encoded, _ := body["base64"].(string)
+	if encoded == "" {
+		return nil, errors.New("body needs content or base64")
+	}
+	raw, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("body.base64: %w", err)
+	}
+	return raw, nil
+}
+
+// streamTimeout is the input property bounding a stream read: the call returns
+// what arrived by then instead of waiting on a server that never closes.
+const streamTimeout = "timeout_sec"
+
+// streamDelay reads that bound: ten seconds by default, one to sixty.
+func streamDelay(args map[string]any) time.Duration {
+	sec := 10
+	switch v := args[streamTimeout].(type) {
+	case float64:
+		sec = int(v)
+	case int:
+		sec = v
+	}
+	sec = max(1, min(60, sec))
+	return time.Duration(sec) * time.Second
 }
 
 // formValue is how Portainer reads a non-file field: a scalar as its text, an
@@ -228,6 +277,12 @@ func apiResult(t catalog.Tool, resp *portainer.Response) *mcp.CallToolResult {
 	text := string(body)
 	if len(body) == 0 {
 		text = fmt.Sprintf("HTTP %d: empty body", resp.Status)
+		if resp.TimedOut {
+			text = "no data arrived before timeout_sec elapsed"
+		}
+	}
+	if resp.TimedOut && len(body) > 0 {
+		text += "\n…[stream read stopped at timeout_sec: raise it to read longer]"
 	}
 	if resp.Truncated {
 		if page, ok := arrayPageResult(t, body); ok {

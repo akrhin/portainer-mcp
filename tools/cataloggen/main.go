@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -25,22 +26,30 @@ func main() {
 }
 
 type mapping struct {
-	Version       int                          `yaml:"version"`
-	Toolsets      []string                     `yaml:"toolsets"`
-	Tags          map[string]map[string]string `yaml:"tags"`
-	Overrides     map[string]string            `yaml:"operation_toolsets"`
-	SkipTags      []string                     `yaml:"skip_tags"`
-	SkipPaths     []string                     `yaml:"skip_paths"`
-	SkipMethods   []string                     `yaml:"skip_methods"`
-	Aliases       map[string]string            `yaml:"word_aliases"`
-	Rewrites      map[string]string            `yaml:"rewrites"`
-	Unnamed       map[string]string            `yaml:"unnamed"`
-	Renames       map[string]string            `yaml:"param_renames"`
-	Extras        []extra                      `yaml:"extras"`
-	StreamParams  []string                     `yaml:"streaming_params"`
-	StreamPaths   []string                     `yaml:"streaming_paths"`
-	StripPaths    []string                     `yaml:"strip_managed_fields_paths"`
-	ToolOverrides map[string]toolOverride      `yaml:"tool_overrides"`
+	Version  int                          `yaml:"version"`
+	Toolsets []string                     `yaml:"toolsets"`
+	Tags     map[string]map[string]string `yaml:"tags"`
+	// TagPriority names the tags that decide the toolset before the
+	// operation's first tag does, so an Auth operation that also carries MFA
+	// lands in the MFA toolset.
+	TagPriority  []string          `yaml:"tag_priority"`
+	Overrides    map[string]string `yaml:"operation_toolsets"`
+	SkipTags     []string          `yaml:"skip_tags"`
+	SkipPaths    []string          `yaml:"skip_paths"`
+	SkipMethods  []string          `yaml:"skip_methods"`
+	Aliases      map[string]string `yaml:"word_aliases"`
+	Rewrites     map[string]string `yaml:"rewrites"`
+	Unnamed      map[string]string `yaml:"unnamed"`
+	Renames      map[string]string `yaml:"param_renames"`
+	Extras       []extra           `yaml:"extras"`
+	StreamParams []string          `yaml:"streaming_params"`
+	StreamPaths  []string          `yaml:"streaming_paths"`
+	// DeadlinePaths marks operations that stream whatever the arguments are and
+	// are read until a timeout instead of being refused: SSE feeds and long
+	// polls.
+	DeadlinePaths []string                `yaml:"deadline_paths"`
+	StripPaths    []string                `yaml:"strip_managed_fields_paths"`
+	ToolOverrides map[string]toolOverride `yaml:"tool_overrides"`
 }
 
 // toolOverride replaces what the derived annotation and the spec text say about
@@ -92,6 +101,7 @@ type operation struct {
 	bodyReq     bool
 	bodyDesc    string
 	form        bool // the body is multipart/form-data only
+	binary      bool // the body is raw bytes of a named media type
 	resp        map[string]any
 }
 
@@ -256,7 +266,7 @@ func buildProfile(p profile) (*catalog.Catalog, error) {
 	for _, op := range ops {
 		toolset, ok := m.Overrides[op.id]
 		if !ok {
-			toolset, ok = m.Tags[op.source][firstTag(op.tags)]
+			toolset, ok = m.Tags[op.source][toolsetTag(m, op.tags)]
 		}
 		if !ok {
 			return nil, fmt.Errorf("%s %s %s: no toolset for tags %v", op.source, op.method, op.path, op.tags)
@@ -499,6 +509,7 @@ func parseOp(m mapping, sp *spec, method, path string, raw map[string]any, itemP
 		op.bodyReq = boolVal(rb["required"])
 		op.bodyDesc = str(rb["description"])
 		op.form = formOnly(rb)
+		op.binary = binaryOnly(rb)
 	}
 
 	if resp, ok := raw["responses"].(map[string]any); ok {
@@ -542,6 +553,21 @@ func formOnly(rb map[string]any) bool {
 	return form
 }
 
+// binaryOnly reports whether a request body carries raw bytes under a media
+// type that is not JSON: the handler then sends the decoded content instead of
+// a JSON document.
+func binaryOnly(rb map[string]any) bool {
+	content, _ := rb["content"].(map[string]any)
+	if len(content) == 0 {
+		return false
+	}
+	if _, ok := content["application/json"]; ok {
+		return false
+	}
+	_, ok := content["application/octet-stream"]
+	return ok
+}
+
 // response200 returns the 200 response body schema, if any.
 func response200(r map[string]any) map[string]any {
 	if content, ok := r["content"].(map[string]any); ok {
@@ -570,6 +596,10 @@ func swaggerSchema(p map[string]any) map[string]any {
 	}
 	return out
 }
+
+// streamTimeout is the input property that bounds a stream read; the handler
+// reads it under the same name.
+const streamTimeout = "timeout_sec"
 
 func buildTool(m mapping, op *operation, toolset, name, instance string) catalog.Tool {
 	props := map[string]any{}
@@ -605,6 +635,9 @@ func buildTool(m mapping, op *operation, toolset, name, instance string) catalog
 		if op.form && desc == "" {
 			desc = "Form fields, sent as multipart/form-data. A value {filename, content} or {filename, base64} is sent as a file part."
 		}
+		if op.binary && desc == "" {
+			desc = `Raw request body, sent as application/octet-stream: {"content": "text"} or {"base64": "..."} for binary.`
+		}
 		if desc == "" {
 			desc = "JSON request body, passed to the API unchanged."
 		}
@@ -615,6 +648,18 @@ func buildTool(m mapping, op *operation, toolset, name, instance string) catalog
 		}
 		if op.bodyReq {
 			required = append(required, "body")
+		}
+	}
+	stream := containsAny(op.path, m.DeadlinePaths)
+	if stream {
+		// The operation never ends on its own, so the call is bounded here
+		// rather than refused: what arrived by the deadline is the answer.
+		props[streamTimeout] = map[string]any{
+			"type":        "integer",
+			"description": "Seconds to read before returning what arrived.",
+			"default":     10,
+			"minimum":     1,
+			"maximum":     60,
 		}
 	}
 	props["instance"] = map[string]any{
@@ -643,6 +688,7 @@ func buildTool(m mapping, op *operation, toolset, name, instance string) catalog
 			CSV:    csv,
 		},
 		StreamingPath:      containsAny(op.path, m.StreamPaths),
+		Stream:             stream,
 		StripManagedFields: containsAny(op.path, m.StripPaths),
 	}
 	for _, p := range m.StreamParams {
@@ -654,6 +700,11 @@ func buildTool(m mapping, op *operation, toolset, name, instance string) catalog
 	if op.body {
 		tool.Operation.Body = "body"
 		tool.Operation.Form = op.form
+		tool.Operation.Binary = op.binary
+	}
+	if op.binary {
+		const note = " The body is sent as application/octet-stream."
+		tool.Description = clip(tool.Description, 400-len(note)) + note
 	}
 	if op.form {
 		// The note stays whole: a cut description must not lose the one fact
@@ -830,6 +881,17 @@ func renameOne(m mapping, name string) string {
 		return to
 	}
 	return name
+}
+
+// toolsetTag is the tag that decides the toolset: a priority tag wins over the
+// first one, so an operation that also carries MFA lands in the MFA set.
+func toolsetTag(m mapping, tags []string) string {
+	for _, want := range m.TagPriority {
+		if slices.Contains(tags, want) {
+			return want
+		}
+	}
+	return firstTag(tags)
 }
 
 func firstTag(tags []string) string {

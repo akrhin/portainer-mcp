@@ -51,6 +51,22 @@ toolsets:
     description: Authentication, settings, updaters, notifications and enrollment tokens.
     depends_on: [core]
 
+  - name: uploads
+    description: File upload sessions and their chunks.
+    depends_on: [core]
+
+  - name: push
+    description: APNs devices and pairing tokens for mobile push notifications.
+    depends_on: [core]
+
+  - name: events
+    description: Environment events, including the long-poll and the live event stream.
+    depends_on: [core]
+
+  - name: auth
+    description: Login factors an API client rarely drives, namely MFA, passkeys and OIDC.
+    depends_on: [core]
+
   - name: raw
     description: One tool that calls any Arcane path, for operations the catalog does not cover.
     depends_on: []

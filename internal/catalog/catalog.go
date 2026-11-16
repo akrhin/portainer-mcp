@@ -56,6 +56,10 @@ type Tool struct {
 	// StreamingPath marks an operation that streams whatever the arguments
 	// are, so only a bounded window ("until") makes the call answer.
 	StreamingPath bool `yaml:"streaming_path,omitempty"`
+	// Stream marks a server-sent-event or long-poll operation that the handler
+	// reads until its timeout_sec deadline instead of refusing: the bytes that
+	// arrived are the answer.
+	Stream bool `yaml:"stream,omitempty"`
 	// StripManagedFields drops metadata.managedFields from the answer before
 	// it reaches the model; Kubernetes lists repeat it in every object.
 	StripManagedFields bool `yaml:"strip_managed_fields,omitempty"`
@@ -71,6 +75,9 @@ type Operation struct {
 	// Form sends Body as multipart/form-data instead of JSON: a property that
 	// is an object with a filename becomes a file part, the rest become text.
 	Form bool `yaml:"form,omitempty"`
+	// Binary sends Body as raw bytes with the media type the document names;
+	// the property holds {content} or {base64}.
+	Binary bool `yaml:"binary,omitempty"`
 	// CSV lists query parameters encoded as one comma-joined value.
 	CSV []string `yaml:"csv,omitempty"`
 	// Raw tools take method and path from their arguments and append the path

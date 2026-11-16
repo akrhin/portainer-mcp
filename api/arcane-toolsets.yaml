@@ -2,7 +2,7 @@
 # names. Read by tools/cataloggen; api/toolsets.yaml does the same for Portainer.
 version: 1
 
-toolsets: [core, containers, images, volumes, networks, projects, backups, gitops, swarm, podman, security, admin, raw]
+toolsets: [core, containers, images, volumes, networks, projects, backups, gitops, swarm, podman, security, admin, uploads, push, events, auth, raw]
 
 # One entry per tag of the Arcane document. Tags not listed here reach no
 # toolset and stop the build, which is how a new Arcane tag gets noticed.
@@ -11,7 +11,6 @@ tags:
     Activities: core
     Diagnostics: core
     Environments: core
-    Events: core
     Health: core
     System: core
     Version: core
@@ -59,17 +58,24 @@ tags:
     Settings: admin
     Updater: admin
 
+    Uploads: uploads
+    Mobile Push: push
+    Events: events
+    Stream: events
+
+    MFA: auth
+    OIDC: auth
+    Passkeys: auth
+
 # The three job-run operations carry no tag in the document.
 operation_toolsets:
   get-job-run: admin
   job-run-action: admin
   list-job-runs: admin
 
-# Login factors, push notifications and file uploads are not part of a tool
-# server: they need a browser, a device or a multipart form a model does not
-# fill in. A tag is skipped even when it is not the operation's first one, so
-# the Auth operations that also carry Passkeys or MFA stay out too.
-skip_tags: [Stream, Uploads, Mobile Push, MFA, Passkeys, OIDC]
+# An Auth operation that also carries a login factor belongs to the factor's
+# set, so the factor operations land in one place instead of hiding in admin.
+tag_priority: [Stream, MFA, OIDC, Passkeys]
 
 # listGitOpsSyncs splits into list, git, ops, syncs; the alias keeps the word.
 word_aliases:
@@ -99,17 +105,18 @@ rewrites:
   list-image-vulnerabilities: image_vulnerabilities_list_all
   prune-all: system_prune
   put-swarm-node-agent-binding: swarm_node_agent_binding_put
+  system-health: system_health_head
+  upload-chunk: upload_chunk
   upload-system-backup: system_backup_upload
   upload-volume-backup: volume_backup_upload
 
-# Two operations never return on their own: an event long-poll and the upgrade
-# progress feed. A tool that blocks is worse than a missing tool.
-skip_paths:
+# Three operations never return on their own: an event long-poll, the upgrade
+# progress feed and the event stream. They are read until timeout_sec instead
+# of being refused, so the call answers with what arrived.
+deadline_paths:
+  - /stream
   - /agents/{id}/events/changes
   - /agents/{id}/system/upgrade/progress
-
-# HEAD answers no body, which makes it useless as a tool.
-skip_methods: [head]
 
 extras:
   - name: arcane_raw

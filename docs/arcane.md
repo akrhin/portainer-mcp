@@ -8,15 +8,16 @@ They share the handler, the configuration types and the embedded catalog machine
 they are enabled in an MCP client independently.
 
 Arcane 3.0.1 answers JSON under `/api` and authenticates with an `X-API-Key` header. The
-catalog covers 399 tools in thirteen toolsets; 53 are registered by default, and
-`--exhaustive` registers every operation of the enabled sets.
+catalog covers 445 tools in seventeen toolsets; 53 are registered by default, and
+`--exhaustive` registers every operation of the enabled sets. Every one of the 444
+operations in the document is reachable through a tool.
 
 ## Where the Arcane tools come from
 
 | File | Role |
 |---|---|
 | `api/arcane-3.1.yaml` | The converted OpenAPI document; written by `tools/specgen`, never edited by hand |
-| `api/arcane-toolsets.yaml` | Tag-to-toolset map, overrides, skipped tags and paths, name rewrites and the `arcane_raw` extra |
+| `api/arcane-toolsets.yaml` | Tag-to-toolset map, overrides, deadline paths, name rewrites and the `arcane_raw` extra |
 | `api/arcane-default-tools.yaml` | The 53 tools registered without `--exhaustive` |
 | `tools/cataloggen -profile arcane` | Reads the three files above and writes `internal/catalog/arcane/generated.yaml` |
 | `internal/catalog/arcane/catalog.yaml` | Toolset names, descriptions and `depends_on` edges |
@@ -30,7 +31,7 @@ identical. `make catalog` regenerates both catalogs in one run.
 
 | Toolset | Depends on | Tools | Default |
 |---|---|---|---|
-| `core` | — | 37 | 8 |
+| `core` | — | 36 | 6 |
 | `containers` | `core` | 15 | 8 |
 | `images` | `core` | 46 | 6 |
 | `volumes` | `core` | 26 | 3 |
@@ -42,10 +43,27 @@ identical. `make catalog` regenerates both catalogs in one run.
 | `podman` | `core` | 26 | 2 |
 | `security` | `core` | 42 | 4 |
 | `admin` | `core` | 45 | 2 |
+| `uploads` | `core` | 4 | 0 |
+| `push` | `core` | 6 | 0 |
+| `events` | `core` | 6 | 2 |
+| `auth` | `core` | 31 | 0 |
 | `raw` | — | 1 | 0 |
 
-Total: 399 tools, 53 in the default set. `backups` and `raw` stand alone; everything else
-needs `core`, which carries the environment (agent) and system calls.
+Total: 445 tools, 53 in the default set. `backups` and `raw` stand alone; everything else
+needs `core`, which carries the environment (agent) and system calls. `uploads`, `push` and
+`auth` are off by default: a chunk upload, an APNs device registration and an MFA or OIDC
+ceremony are driven by a person or a device, not by a model, so the default set leaves them
+closed until a client asks for the set by name.
+
+`events` carries `stream_client` and `wait_for_environment_changes`, both of which would
+hang a plain request: they are read until a deadline. Each such tool takes `timeout_sec`
+(integer, 10 by default, 1 to 60) and answers with what the server sent before it elapsed,
+ending the text with `…[stream read stopped at timeout_sec: raise it to read longer]`. The
+same applies to `stream_upgrade_progress`.
+
+An operation whose document names `application/octet-stream` as its only request body, such
+as `upload_chunk`, takes `{"content": "text"}` or `{"base64": "..."}` and sends the bytes
+unchanged: the whole file never has to become a JSON string of escaped characters.
 
 Arcane addresses every resource through an agent: paths read
 `/api/agents/{id}/containers/{containerId}`, where `id` is the environment id from
@@ -59,7 +77,7 @@ Arcane's OpenAPI document has no exec operation. The terminal lives on a WebSock
 `GET /api/agents/{id}/ws/containers/{containerId}/terminal?shell=/bin/sh&cols=&rows=`, so
 the catalog can not describe it and `container_exec` is registered by hand. It is off
 unless the operator asks for it: `--allow-exec` or `ARCANE_ALLOW_EXEC=true`, and never in
-`--read-only`. It adds one tool beyond the 399 of the catalog.
+`--read-only`. It adds one tool beyond the 445 of the catalog.
 
 > **This tool runs an arbitrary command inside a container, with the same rights as the
 > process already running there.** Nothing is quoted or matched against a list on this
@@ -160,10 +178,13 @@ the same bytes.
   WebSocket route the catalog can not describe, so `container_exec` is hand-written and
   off by default (see above). Its protocol reports no exit code.
 - The Stream (server-sent events), Uploads, Mobile Push, MFA, Passkeys and OIDC tags are
-  skipped: they are browser flows or long-lived streams rather than request/response
-  operations.
-- `HEAD` operations and the two `/events/changes` and `/system/upgrade/progress` streams
-  are dropped by `skip_methods` and `skip_paths`.
+  reachable through their own toolsets, all off by default (`events` except its two
+  default tools). A browser-driven passkey or OIDC ceremony still needs a real browser:
+  the tools expose the API, not the user's authenticator.
+- The `/auth/me/…` tools answer `401 unauthorized` to an API key: Arcane accepts only a
+  user session there, so `passkey_*` and `mfa_*` reach the route but not a result.
+- `HEAD` operations answer no body, so `health_check_head` and `system_health_head` exist
+  for completeness rather than for use.
 - The container images published by the release workflow still contain `portainer-mcp`
   only; the Arcane binary ships in the archives.
 - The Arcane client reuses the Portainer HTTP executor with a different authentication
