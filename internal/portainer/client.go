@@ -32,7 +32,8 @@ type Client struct {
 // New builds a client. Self-signed certificates are accepted only when
 // TLSVerify is false.
 func New(opts Options) (*Client, error) {
-	tlsCfg := &tls.Config{InsecureSkipVerify: !opts.TLSVerify} //nolint:gosec // opt-in for self-signed homelab instances
+	// #nosec G402 -- tls_verify: false is an explicit opt-in for self-signed instances.
+	tlsCfg := &tls.Config{InsecureSkipVerify: !opts.TLSVerify} //nolint:gosec // same reason
 	if opts.CAFile != "" {
 		pem, err := os.ReadFile(opts.CAFile)
 		if err != nil {

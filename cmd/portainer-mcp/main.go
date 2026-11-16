@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -78,8 +79,14 @@ func run() error {
 		handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return srv }, nil)
 		mux := http.NewServeMux()
 		mux.Handle("/mcp", handler)
+		hs := &http.Server{
+			Addr:              cfg.Server.Listen,
+			Handler:           mux,
+			ReadHeaderTimeout: 15 * time.Second,
+			IdleTimeout:       120 * time.Second,
+		}
 		fmt.Fprintf(os.Stderr, "portainer-mcp: streamable HTTP on %s/mcp\n", cfg.Server.Listen)
-		return http.ListenAndServe(cfg.Server.Listen, mux)
+		return hs.ListenAndServe()
 	}
 	return srv.Run(ctx, &mcp.StdioTransport{})
 }

@@ -31,10 +31,13 @@ jobs:
 
       - name: run gosec
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.4
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.30.0
           "$(go env GOPATH)/bin/gosec" -no-fail -fmt sarif -out gosec.sarif ./...
 
+      # Code scanning needs GHAS on private repositories; the file itself is
+      # always produced, so the scan runs everywhere and only the upload waits.
       - uses: github/codeql-action/upload-sarif@v4
+        if: ${{ !github.event.repository.private }}
         with:
           sarif_file: gosec.sarif
           category: gosec
@@ -53,7 +56,7 @@ jobs:
 
       - name: run govulncheck
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
           "$(go env GOPATH)/bin/govulncheck" ./...
 
   gitleaks:
@@ -84,6 +87,9 @@ jobs:
 
   codeql:
     name: codeql
+    # Same reason: CodeQL results go to code scanning, which is unavailable on a
+    # private repository without GitHub Advanced Security.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

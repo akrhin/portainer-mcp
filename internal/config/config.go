@@ -43,7 +43,7 @@ type Instance struct {
 // Load reads the config file, substitutes ${VAR} references and validates the
 // result against the catalog.
 func Load(path string, cat *catalog.Catalog) (*Config, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- path is the operator's --config flag
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}

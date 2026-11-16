@@ -2,21 +2,27 @@
 
 # portainer-mcp
 
-An MCP server that exposes Portainer to MCP clients: Portainer itself today, with
-Docker, Kubernetes and Helm declared in the catalog for the stages that follow.
+An MCP server that exposes Portainer to MCP clients: Portainer's own API, Docker
+Engine through Portainer environments, Kubernetes and Helm. The surface is generated
+from the Portainer 2.45 and Docker Engine 1.57 OpenAPI documents — 394 tools across
+eleven toolsets, 87 of them registered by default.
 
 Written in Go against the official `github.com/modelcontextprotocol/go-sdk` v1.8.0.
 The revision a client negotiates with the server follows the SDK, which speaks MCP
 `2026-07-28`; the server also answers the legacy `2025-11-25` handshake. Transport
 is stdio by default or Streamable HTTP at `/mcp`.
 
-The tool surface is data: `internal/catalog/catalog.yaml` is embedded in the binary
-and drives registration, read-only filtering and startup validation. A tool that is
-not in the catalog cannot be called.
+The tool surface is data. `api/toolsets.yaml` maps OpenAPI tags and paths to toolsets
+and carries the name rewrites; `api/default-tools.yaml` lists the 87 tools registered
+without `--exhaustive`. `make catalog` (`go run ./tools/cataloggen`) turns both, plus
+the two specifications, into `internal/catalog/generated.yaml`, which is embedded in
+the binary. `internal/catalog/catalog.yaml` keeps only toolset descriptions and
+dependencies. A tool that is not in the generated catalog cannot be called.
 
-**Status: stage 0.** The catalog declares eleven toolsets and 113 operations; only
-`core` has handlers. Enabling any other toolset stops the server with
-`not implemented yet`, so a client never sees a tool that cannot answer.
+**Status: the catalog is executable.** All 394 tools are registered from data and run
+through one handler. Without flags, startup registers the 87-tool default set of the
+enabled toolsets; `--exhaustive` registers every operation of those toolsets, and
+`--read-only` filters either set down to tools annotated read-only.
 
 ## Requirements
 
@@ -31,6 +37,7 @@ not in the catalog cannot be called.
 ```sh
 make build      # ./portainer-mcp
 make check      # gofmt, go vet, go test
+make catalog    # regenerate internal/catalog/generated.yaml from api/
 ```
 
 ## Configure
@@ -89,32 +96,45 @@ put TLS in front of it if the endpoint leaves the host.
 | `--config` | `config.yaml` | Path to the YAML configuration |
 | `--toolsets` | — | Comma-separated toolset names; replaces the configured list |
 | `--read-only` | `false` | Register only tools annotated `readOnlyHint: true` |
-| `--exhaustive` | `false` | One tool per API operation; refused until stage 1 |
+| `--exhaustive` | `false` | Register every operation of the enabled toolsets instead of the default set |
+| `--version` | — | Print `portainer-mcp <version> (<commit>, <date>)` and exit |
 
 Flags override the file where they overlap. `--read-only` is combined with
-`server.read_only` (either one enables it); `--toolsets` replaces `toolsets`.
+`server.read_only` (either one enables it); `--toolsets` replaces `toolsets`;
+`--exhaustive` is combined with `server.exhaustive`.
 
 ## Toolsets
 
 Eleven toolsets, selected by name. A toolset cannot be enabled without the ones it
-depends on. Only `core` is implemented:
+depends on. The counts are what the generated catalog holds and what the default set
+registers:
 
-`system_version`, `system_status`, `system_info`, `settings_get`, `whoami`,
-`environment_list`, `environment_inspect`.
+| Toolset | Depends on | Tools | Default |
+|---|---|---|---|
+| `core` | — | 29 | 7 |
+| `docker` | `core` | 79 | 13 |
+| `swarm` | `docker` | 30 | 6 |
+| `k8s` | `core` | 105 | 14 |
+| `helm` | `k8s` | 11 | 6 |
+| `stacks` | `docker` | 36 | 9 |
+| `gitops` | `stacks` | 14 | 5 |
+| `edge` | `core` | 28 | 8 |
+| `admin` | `core` | 55 | 12 |
+| `observability` | `core` | 4 | 4 |
+| `raw` | — | 3 | 3 |
 
-Declared but not implemented: `docker`, `swarm`, `k8s`, `helm`, `stacks`, `gitops`,
-`edge`, `admin`, `observability`, `raw`. Enabling one is a startup error, which is
-deliberate: a client must never see a tool that cannot answer.
-
-Every tool accepts an optional `instance` argument naming a configured instance, and
-defaults to the first one. What each toolset contains, its dependencies and the tool
-names behind them are in [docs/toolsets.md](docs/toolsets.md).
+Total: 394 tools, 87 in the default set. Every tool accepts an optional `instance`
+argument naming a configured instance, and defaults to the first one. The default set
+is curated in `api/default-tools.yaml`; `--exhaustive` ignores it and registers every
+tool of the enabled sets. The full list, per set and with the HTTP operation behind
+each tool, is `internal/catalog/generated.yaml`; [docs/toolsets.md](docs/toolsets.md)
+explains the layout and the special handling of streaming and Kubernetes metadata.
 
 ## Documentation
 
 - [Documentation index](docs/index.md) — the entry point and the page map.
 - [Configuration reference](docs/configuration.md) — every key, default and error.
-- [Toolsets](docs/toolsets.md) — the eleven sets, dependencies and declared tools.
+- [Toolsets](docs/toolsets.md) — the eleven sets, their sizes, dependencies and default tools.
 - [Architecture](docs/architecture.md) — packages, startup, request flow, transports.
 - [Development](docs/development.md) — tests, golden files, smoke run, release flow.
 - [Contributing](CONTRIBUTING.md) — build gate, commit style, adding a tool.
