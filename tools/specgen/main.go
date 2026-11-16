@@ -56,7 +56,7 @@ func run(in, out string) error {
 	}
 	const header = "# Converted from the Arcane 3.0.1 OpenAPI 3.1 document by tools/specgen; DO NOT EDIT.\n" +
 		"# Edit the document or the tool, then run: go run ./tools/specgen -in <spec.json> -out api/arcane-3.1.yaml\n"
-	// #nosec G306 -- a generated repository file must stay group/world readable.
+	// #nosec G306 G703 -- the path is the operator's -out flag and the file must stay group/world readable.
 	return os.WriteFile(out, append([]byte(header), body...), 0o644)
 }
 
