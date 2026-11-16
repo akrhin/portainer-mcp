@@ -1,13 +1,20 @@
 package mcpserver
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/akrhin/portainer-mcp/internal/catalog"
 )
 
 // TestFormBody covers the multipart-only operations: the body object is sent as
@@ -177,5 +184,56 @@ func TestUntilAcceptsEpoch(t *testing.T) {
 	})
 	if !res.IsError || hits != 0 {
 		t.Fatalf("unbounded follow = error %v after %d requests", res.IsError, hits)
+	}
+}
+
+// TestContainerExecTwice: a second call must expand its own exec id. The start
+// path used to be reassigned into the captured parameter, so every call after
+// the first started the first exec again and read "exec command … has already
+// run" instead of its output.
+func TestContainerExecTwice(t *testing.T) {
+	var creates int
+	var starts []string
+	srvHTTP := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/containers/abc/exec"):
+			creates++
+			_, _ = fmt.Fprintf(w, `{"Id":"exec-%d"}`, creates)
+		case strings.Contains(r.URL.Path, "/exec/"):
+			starts = append(starts, r.URL.Path)
+			_, _ = w.Write([]byte("ok\n"))
+		default:
+			t.Errorf("unexpected request %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(srvHTTP.Close)
+
+	cat, err := catalog.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv, err := New(testConfig(srvHTTP.URL), cat, Options{Toolsets: []string{"core", "docker"}})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	session := connect(t, srv)
+	for i := 0; i < 2; i++ {
+		res, err := session.CallTool(context.Background(), &mcp.CallToolParams{Name: "container_exec", Arguments: map[string]any{
+			"environment": float64(7),
+			"id":          "abc",
+			"body":        map[string]any{"Cmd": []any{"true"}},
+		}})
+		if err != nil {
+			t.Fatalf("call %d: %v", i+1, err)
+		}
+		if res.IsError {
+			t.Fatalf("call %d = %q", i+1, text(t, res))
+		}
+	}
+	if want := []string{
+		"/api/endpoints/7/docker/exec/exec-1/start",
+		"/api/endpoints/7/docker/exec/exec-2/start",
+	}; len(starts) != 2 || starts[0] != want[0] || starts[1] != want[1] {
+		t.Fatalf("starts = %v, want %v", starts, want)
 	}
 }

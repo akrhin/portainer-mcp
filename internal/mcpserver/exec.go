@@ -49,7 +49,7 @@ func (e *env) containerExec(create catalog.Tool, startPath string) handler {
 			return nil, fmt.Errorf("exec create returned no id: %s", cut(resp.Body, 300))
 		}
 
-		startPath, err = portainer.ExpandPath(startPath, map[string]any{
+		run, err := portainer.ExpandPath(startPath, map[string]any{
 			"environment": args["environment"], "id": created.Id,
 		})
 		if err != nil {
@@ -59,7 +59,7 @@ func (e *env) containerExec(create catalog.Tool, startPath string) handler {
 		if err != nil {
 			return nil, fmt.Errorf("encode start: %w", err)
 		}
-		out, err := c.Do(ctx, http.MethodPost, startPath, nil, payload)
+		out, err := c.Do(ctx, http.MethodPost, run, nil, payload)
 		if err != nil {
 			return nil, err
 		}
