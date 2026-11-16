@@ -138,11 +138,13 @@ The docs jobs are conditional on the files existing, so a checkout without
 A `v*` tag runs `.goreleaser.yaml` with `release --clean`. The artifacts are:
 
 - Archives for `linux`, `darwin` and `windows` on `amd64` and `arm64`, `tar.gz` and
-  `zip` for Windows, named `portainer-mcp_<version>_<os>_<arch>`.
+  `zip` for Windows, named `portainer-mcp_<version>_<os>_<arch>`. Each archive holds
+  both binaries, `portainer-mcp` and `arcane-mcp`.
 - `checksums.txt`, SHA-256.
 - SBOMs for every archive, generated with syft (the workflow installs it).
 - A multi-arch container image on `ghcr.io/akrhin/portainer-mcp`, one image per
-  architecture plus manifests for `:<version>` and `:latest`.
+  architecture plus manifests for `:<version>` and `:latest`. The image runs the
+  Portainer server; there is no image for `arcane-mcp` yet.
 
 The release build fills `--version` through
 `-X main.version={{ .Version }} -X main.commit={{ .Commit }} -X main.date={{ .Date }}`

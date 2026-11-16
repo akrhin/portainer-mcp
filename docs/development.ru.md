@@ -141,11 +141,13 @@ npx --yes markdownlint-cli2@0.24.1
 Тег `v*` запускает `.goreleaser.yaml` с `release --clean`. Артефакты:
 
 - Архивы для `linux`, `darwin` и `windows` на `amd64` и `arm64`, `tar.gz` и `zip`
-  для Windows, с именем `portainer-mcp_<version>_<os>_<arch>`.
+  для Windows, с именем `portainer-mcp_<version>_<os>_<arch>`. В каждом архиве оба
+  бинаря, `portainer-mcp` и `arcane-mcp`.
 - `checksums.txt`, SHA-256.
 - SBOM для каждого архива, собранный syft (workflow его ставит).
 - Multi-arch образ в `ghcr.io/akrhin/portainer-mcp`: по образу на архитектуру плюс
-  манифесты `:<version>` и `:latest`.
+  манифесты для `:<version>` и `:latest`; образ запускает сервер Portainer, отдельного
+  образа для `arcane-mcp` пока нет.
 
 Релизная сборка заполняет `--version` через
 `-X main.version={{ .Version }} -X main.commit={{ .Commit }} -X main.date={{ .Date }}`
@@ -156,7 +158,7 @@ features, исправления, производительность, рефа
 `test`, `ci`, `style`, `build` и merge-коммиты отфильтрованы. Поэтому префиксы
 коммитов важны не только для аккуратности.
 
-Тег `v0.1.0` выпущен, поэтому архивы релиза и образ `ghcr.io/akrhin/portainer-mcp`
+Тег `v0.3.0` выпущен, поэтому архивы релиза и образ `ghcr.io/akrhin/portainer-mcp`
 существуют; локально образ собирается командой `docker build -t portainer-mcp .`.
 
 Образ собирается из `golang:1.27-alpine` и работает на

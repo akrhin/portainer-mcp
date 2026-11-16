@@ -171,13 +171,14 @@ MFA, Passkeys и OIDC пропущены. Наборы, флаги и перег
 Релизы выходят по тегу `v*`. Workflow собирает архивы для `linux`, `darwin` и
 `windows` на `amd64` и `arm64` с контрольными суммами и SBOM, а также публикует
 multi-arch образ в `ghcr.io/akrhin/portainer-mcp` (тег `:latest` и тег версии).
-Образ distroless и работает не от root. Релиз `v0.1.0` вышел, поэтому быстрее всего
+Образ distroless и работает не от root. Релиз `v0.3.0` вышел, поэтому быстрее всего
 взять архив релиза или образ:
 
 ```sh
 docker run -i --rm -e PORTAINER_API_KEY -v "$PWD/config.yaml:/config.yaml" \
-  ghcr.io/akrhin/portainer-mcp:v0.1.0 --config /config.yaml
-go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.1.0
+  ghcr.io/akrhin/portainer-mcp:v0.3.0 --config /config.yaml
+go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.3.0
+go install github.com/akrhin/portainer-mcp/cmd/arcane-mcp@v0.3.0
 ```
 
 Собрать образ из чекаута: `docker build -t portainer-mcp .`.

@@ -165,13 +165,15 @@ toolsets, the flags and the regeneration steps.
 Releases are cut from a `v*` tag. The workflow builds `linux`, `darwin` and `windows`
 archives for `amd64` and `arm64` with checksums and SBOMs, and publishes a multi-arch
 image to `ghcr.io/akrhin/portainer-mcp` (`:latest` and the version tag). The image is
-distroless and runs as a non-root user. `v0.1.0` is out, so the quickest start is
-the release archive or the image:
+distroless and runs as a non-root user. `v0.3.0` is out, so the quickest start is
+the release archive or the image. Every archive carries both binaries, `portainer-mcp`
+and `arcane-mcp`:
 
 ```sh
 docker run -i --rm -e PORTAINER_API_KEY -v "$PWD/config.yaml:/config.yaml" \
-  ghcr.io/akrhin/portainer-mcp:v0.1.0 --config /config.yaml
-go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.1.0
+  ghcr.io/akrhin/portainer-mcp:v0.3.0 --config /config.yaml
+go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.3.0
+go install github.com/akrhin/portainer-mcp/cmd/arcane-mcp@v0.3.0
 ```
 
 To build the image from the checkout instead, `docker build -t portainer-mcp .`.
