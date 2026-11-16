@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A second binary, `arcane-mcp`, serves [Arcane](https://getarcane.app) managers from
+  the same repository: `--url` and an `X-API-Key` from `--api-key`, a catalog of 399
+  tools in thirteen toolsets with 53 registered by default, and the same handler as
+  the Portainer server.
+- `tools/specgen` converts the Arcane OpenAPI 3.1 document to `api/arcane-3.1.yaml`
+  deterministically (`make spec-arcane`), and `tools/cataloggen -profile arcane`
+  builds `internal/catalog/arcane/generated.yaml`.
+- `make build-arcane`, a second GoReleaser build and `scripts/smoke-arcane.sh`, which
+  drives the Arcane server over stdio against a live manager.
 - Multipart operations (endpoint creation, file-based stack creation, TLS
   certificate upload and the other five) now work: the generator marks them
   `form: true`, and a `body` value shaped `{filename, content}` or

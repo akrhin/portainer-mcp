@@ -135,6 +135,23 @@ PORTAINER_API_KEY=... ./portainer-mcp --config config.yaml
 [docs/toolsets.ru.md](docs/toolsets.ru.md) объясняет раскладку и особую обработку
 стриминговых тулов и метаданных Kubernetes.
 
+## Бэкенд Arcane
+
+Этот же репозиторий собирает второй сервер, `arcane-mcp`, для менеджера Arcane. У него
+свой каталог — 399 тулов в тринадцати наборах, 53 из них по умолчанию — который строит
+тот же генератор из `api/arcane-3.1.yaml`.
+
+```sh
+make build-arcane
+ARCANE_API_KEY=... ./arcane-mcp --url http://arcane:3552 --toolsets core,containers
+```
+
+`--url` обязателен, файла конфигурации нет. Ключ приходит из `--api-key` (по умолчанию
+`${ARCANE_API_KEY}`) и уходит в заголовке `X-API-Key`. В Arcane 3.0.1 нет эндпоинтов
+exec и terminal, поэтому консоли контейнера нет; теги Stream, Uploads, Mobile Push,
+MFA, Passkeys и OIDC пропущены. Наборы, флаги и перегенерация — в
+[docs/arcane.ru.md](docs/arcane.ru.md).
+
 ## Документация
 
 - [Индекс документации](docs/index.ru.md) — точка входа и карта страниц.
@@ -142,6 +159,7 @@ PORTAINER_API_KEY=... ./portainer-mcp --config config.yaml
   умолчанию и ошибки.
 - [Наборы тулов](docs/toolsets.ru.md) — одиннадцать наборов, их размеры, зависимости
   и тулы по умолчанию.
+- [Бэкенд Arcane](docs/arcane.ru.md) — второй бинарь: его наборы, флаги и ограничения.
 - [Архитектура](docs/architecture.ru.md) — пакеты, старт, поток запроса, транспорты.
 - [Разработка](docs/development.ru.md) — тесты, golden-файлы, smoke-прогон, релиз.
 - [Участие](CONTRIBUTING.ru.md) — ворота сборки, стиль коммитов, добавление тула.
