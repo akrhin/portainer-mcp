@@ -27,6 +27,10 @@ type Options struct {
 	Name string
 	// Open builds the client for one instance; Portainer when nil.
 	Open func(config.Instance) (*portainer.Client, error)
+	// AllowExec registers container_exec, which runs a command inside a
+	// container over the Arcane terminal websocket. Never registered in
+	// read-only mode.
+	AllowExec bool
 }
 
 // New builds the MCP server for the selected toolsets.
@@ -61,6 +65,12 @@ func New(cfg *config.Config, cat *catalog.Catalog, opts Options) (*mcp.Server, e
 			return nil, err
 		}
 		srv.AddTool(toTool(tool), adapt(h))
+		registered++
+	}
+	// container_exec is not in the catalog: Arcane describes exec only as a
+	// terminal websocket. Read-only mode never registers it.
+	if opts.AllowExec && !readOnly {
+		srv.AddTool(execTool(), adapt(env.containerExecWS()))
 		registered++
 	}
 	if registered == 0 {

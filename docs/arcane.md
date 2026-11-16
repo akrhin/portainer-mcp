@@ -53,6 +53,52 @@ Arcane addresses every resource through an agent: paths read
 start, stop, restart, kill, pause or unpause; projects work the same way through
 `project_action`.
 
+## Running commands in a container
+
+Arcane's OpenAPI document has no exec operation. The terminal lives on a WebSocket route,
+`GET /api/agents/{id}/ws/containers/{containerId}/terminal?shell=/bin/sh&cols=&rows=`, so
+the catalog can not describe it and `container_exec` is registered by hand. It is off
+unless the operator asks for it: `--allow-exec` or `ARCANE_ALLOW_EXEC=true`, and never in
+`--read-only`. It adds one tool beyond the 399 of the catalog.
+
+> **This tool runs an arbitrary command inside a container, with the same rights as the
+> process already running there.** Nothing is quoted or matched against a list on this
+> side: the line goes to the container's shell exactly as typed. Enable it only for an
+> agent and a manager where that is what you want, and treat the client that holds the
+> tool as holding a shell on every container of that manager.
+
+What a call does: it opens one TTY session, writes `command` followed by `exit`, reads
+until the server closes the connection, then closes it. There is no stdin stream — the
+session ends with the command, and it is closed on every path, including a timeout and an
+error.
+
+| Argument | Default | Effect |
+|---|---|---|
+| `id` | — | Environment (agent) id, as `environments_list` returns it |
+| `container` | — | Container id or name prefix |
+| `command` | — | The shell line; empty is refused, 4 KiB is the limit |
+| `timeout_sec` | `30` | `1`–`300`; on expiry the session is closed and the partial output returned |
+| `instance` | — | Instance name, as on the other tools |
+
+Two more limits are fixed: the answer is cut at 64 KiB with a `[truncated at 65536
+bytes]` marker, and a frame larger than 1 MiB ends the session.
+
+What the answer contains, and what it does not:
+
+- **No exit code.** Arcane never sends one: its exec runs with a TTY, the socket closes
+  when the shell exits, and the status is only reachable through `ExecInspect`, which the
+  manager does not expose. The audit line therefore prints `exit=unavailable`, and a
+  failing command is recognised by what it printed, not by a status.
+- **TTY echo.** The session is interactive, so the output repeats the command and the
+  prompt, keeps `\r\n` line endings and carries terminal escape sequences. The server
+  writes back `stdout` and `stderr` merged.
+- **Failures before the shell starts** arrive as a line of text and then an abnormal close;
+  the answer then carries `[session closed <code>: <reason>]`.
+
+Every call writes one line to the server's standard error:
+`container_exec agent=… container=… exit=unavailable status=ok|timeout|closed <code>: <reason>|<error text>
+duration=… command="…"`, the command cut to 200 characters.
+
 ## Run it
 
 ```sh
@@ -72,6 +118,7 @@ variable fails at startup instead of sending an empty header.
 | `--toolsets` | all | Comma-separated toolset names |
 | `--read-only` | `false` | Register only tools annotated `readOnlyHint: true` |
 | `--exhaustive` | `false` | Register every operation of the enabled toolsets |
+| `--allow-exec` | `false` | Add `container_exec`, the one-shot container shell; `ARCANE_ALLOW_EXEC=true` sets it too, and `--read-only` wins over both |
 | `--version` | — | Print `arcane-mcp <version> (<commit>, <date>)` and exit |
 
 A client entry:
@@ -106,9 +153,9 @@ the same bytes.
 
 ## Limits on this pass
 
-- Arcane 3.0.1 has no exec, attach or terminal endpoint, so there is no container shell
-  tool. The nearest is `container_processes_list`, which lists the processes inside
-  a container.
+- Arcane 3.0.1 has no exec operation in its OpenAPI document: the terminal is a
+  WebSocket route the catalog can not describe, so `container_exec` is hand-written and
+  off by default (see above). Its protocol reports no exit code.
 - The Stream (server-sent events), Uploads, Mobile Push, MFA, Passkeys and OIDC tags are
   skipped: they are browser flows or long-lived streams rather than request/response
   operations.

@@ -37,6 +37,7 @@ func run() error {
 	toolsets := flag.String("toolsets", "", "comma-separated toolsets, default all")
 	readOnly := flag.Bool("read-only", false, "register read-only tools only")
 	exhaustive := flag.Bool("exhaustive", false, "register every operation of the enabled toolsets, not the curated default set")
+	allowExec := flag.Bool("allow-exec", false, "register container_exec, which runs an arbitrary command inside a container")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -46,6 +47,10 @@ func run() error {
 	}
 	if *url == "" {
 		return fmt.Errorf("--url is required")
+	}
+	// The environment is the only way to enable it for a supervised process.
+	if os.Getenv("ARCANE_ALLOW_EXEC") == "true" {
+		*allowExec = true
 	}
 
 	cat, err := catalog.LoadArcane()
@@ -73,6 +78,7 @@ func run() error {
 		Exhaustive: *exhaustive,
 		Name:       "arcane-mcp",
 		Open:       arcane.New,
+		AllowExec:  *allowExec,
 	})
 	if err != nil {
 		return err

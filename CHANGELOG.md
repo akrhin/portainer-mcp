@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   builds `internal/catalog/arcane/generated.yaml`.
 - `make build-arcane`, a second GoReleaser build and `scripts/smoke-arcane.sh`, which
   drives the Arcane server over stdio against a live manager.
+- `container_exec` runs one shell line inside an Arcane container and returns what it
+  printed. Arcane publishes no exec operation — the terminal is a WebSocket route — so the
+  tool is registered beside the catalog and sits behind `--allow-exec` (or
+  `ARCANE_ALLOW_EXEC=true`); `--read-only` never registers it. The command goes to the
+  container's shell unquoted, capped at 4 KiB, the answer at 64 KiB, and the session is
+  cut at `timeout_sec` (default 30, at most 300). The protocol reports no exit status, so
+  none is returned; every call is audited on standard error.
 
 ## [0.2.0] - 2026-11-16
 
