@@ -22,9 +22,14 @@ printf '%s\n' \
 id=2
 probes=""
 cores=""
-call() { # call <tool> <arguments-json> [probe]
+streams=""
+call() { # call <tool> <arguments-json> [probe|stream]
   id=$((id + 1))
-  if [ "${3:-}" = probe ]; then probes="$probes $id:$1"; else cores="$cores $id"; fi
+  case "${3:-}" in
+    probe) probes="$probes $id:$1" ;;
+    stream) streams="$streams $id:$1" ;;
+    *) cores="$cores $id" ;;
+  esac
   printf '{"jsonrpc":"2.0","id":%d,"method":"tools/call","params":{"name":"%s","arguments":%s}}\n' \
     "$id" "$1" "$2" >>"$in"
 }
@@ -45,6 +50,18 @@ has gitops && call gitops_sources_list '{}' probe
 has edge && call edge_group_list '{}' probe
 has admin && call user_list '{}' probe
 has observability && call status_inspect '{}' probe
+
+# A streaming tool never returns on its own, so it is probed only when asked
+# for; then the refusal itself is what gets checked. Without SMOKE_STREAM the
+# list must stay free of them, or the run would wait for the client timeout.
+if [ "${SMOKE_STREAM:-0}" = 1 ]; then
+  has observability && call system_events "{\"environment\":$env_id}" stream
+else
+  if grep -qE '"name":"(system_events|container_logs|service_logs|task_logs|container_attach|exec_start)"' "$in"; then
+    echo "FAIL: a streaming tool is in the probe list without SMOKE_STREAM=1" >&2
+    exit 1
+  fi
+fi
 
 "$tmp/portainer-mcp" --config "$config" --toolsets "$toolsets" \
   >"$tmp/out.jsonl" < <(cat "$in"; sleep 8)
@@ -81,6 +98,23 @@ for probe in $probes; do
       fi
       ;;
   esac
+done
+for stream in $streams; do
+  sid="${stream%%:*}"
+  sname="${stream#*:}"
+  line="$(reply "$sid")"
+  if [ -z "$line" ]; then
+    echo "FAIL: $sname did not answer: the call hung instead of refusing" >&2
+    fail=1
+  elif ! printf '%s' "$line" | grep -q '"isError":true'; then
+    echo "FAIL: $sname answered instead of refusing the unbounded stream: $(printf '%s' "$line" | cut -c1-240)" >&2
+    fail=1
+  elif printf '%s' "$line" | grep -q 'streams'; then
+    echo "ok: $sname refused the unbounded stream"
+  else
+    echo "FAIL: $sname failed for another reason: $(printf '%s' "$line" | cut -c1-240)" >&2
+    fail=1
+  fi
 done
 if [ "$fail" -ne 0 ]; then
   exit 1

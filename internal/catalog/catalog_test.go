@@ -202,6 +202,21 @@ toolsets:
 			want: `tool "t1": annotations.readOnlyHint is required`,
 		},
 		{
+			name: "streaming param that is not an input property",
+			doc: `
+version: 1
+toolsets:
+  - name: core
+    tools:
+      - name: t1
+        annotations: {readOnlyHint: true}
+        input: {type: object, properties: {id: {type: string}}}
+        streaming_params: [follow]
+        operation: {method: GET, path: /api/a}
+`,
+			want: `streaming param "follow" is not an input property`,
+		},
+		{
 			name: "unsupported version",
 			doc: `
 version: 2

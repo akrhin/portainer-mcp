@@ -25,17 +25,20 @@ func main() {
 }
 
 type mapping struct {
-	Version   int                          `yaml:"version"`
-	Toolsets  []string                     `yaml:"toolsets"`
-	Tags      map[string]map[string]string `yaml:"tags"`
-	Overrides map[string]string            `yaml:"operation_toolsets"`
-	SkipTags  []string                     `yaml:"skip_tags"`
-	SkipPaths []string                     `yaml:"skip_paths"`
-	Aliases   map[string]string            `yaml:"word_aliases"`
-	Rewrites  map[string]string            `yaml:"rewrites"`
-	Unnamed   map[string]string            `yaml:"unnamed"`
-	Renames   map[string]string            `yaml:"param_renames"`
-	Extras    []extra                      `yaml:"extras"`
+	Version      int                          `yaml:"version"`
+	Toolsets     []string                     `yaml:"toolsets"`
+	Tags         map[string]map[string]string `yaml:"tags"`
+	Overrides    map[string]string            `yaml:"operation_toolsets"`
+	SkipTags     []string                     `yaml:"skip_tags"`
+	SkipPaths    []string                     `yaml:"skip_paths"`
+	Aliases      map[string]string            `yaml:"word_aliases"`
+	Rewrites     map[string]string            `yaml:"rewrites"`
+	Unnamed      map[string]string            `yaml:"unnamed"`
+	Renames      map[string]string            `yaml:"param_renames"`
+	Extras       []extra                      `yaml:"extras"`
+	StreamParams []string                     `yaml:"streaming_params"`
+	StreamPaths  []string                     `yaml:"streaming_paths"`
+	StripPaths   []string                     `yaml:"strip_managed_fields_paths"`
 }
 
 type extra struct {
@@ -206,7 +209,7 @@ func build() (*catalog.Catalog, error) {
 	}
 
 	for _, ex := range m.Extras {
-		tool, err := extraTool(ex)
+		tool, err := extraTool(m, ex)
 		if err != nil {
 			return nil, err
 		}
@@ -529,6 +532,14 @@ func buildTool(m mapping, op *operation, toolset, name string) catalog.Tool {
 			Path:   op.path,
 			CSV:    csv,
 		},
+		StreamingPath:      containsAny(op.path, m.StreamPaths),
+		StripManagedFields: containsAny(op.path, m.StripPaths),
+	}
+	for _, p := range m.StreamParams {
+		// Only a property the operation declares can arrive in the arguments.
+		if _, ok := props[p]; ok {
+			tool.StreamingParams = append(tool.StreamingParams, p)
+		}
 	}
 	if op.body {
 		tool.Operation.Body = "body"
@@ -539,7 +550,7 @@ func buildTool(m mapping, op *operation, toolset, name string) catalog.Tool {
 	return tool
 }
 
-func extraTool(ex extra) (catalog.Tool, error) {
+func extraTool(m mapping, ex extra) (catalog.Tool, error) {
 	if ex.Name == "" || ex.Base == "" {
 		return catalog.Tool{}, fmt.Errorf("api/toolsets.yaml: extra needs a name and a base path")
 	}
@@ -577,9 +588,10 @@ func extraTool(ex extra) (catalog.Tool, error) {
 		required = append(required, "environment")
 	}
 	return catalog.Tool{
-		Name:        ex.Name,
-		Description: clip(ex.Description, 400),
-		Annotations: annotations("POST"), // a raw call may write
+		Name:               ex.Name,
+		Description:        clip(ex.Description, 400),
+		Annotations:        annotations("POST"), // a raw call may write
+		StripManagedFields: containsAny(ex.Base, m.StripPaths),
 		Input: map[string]any{
 			"type":                 "object",
 			"properties":           props,
@@ -588,6 +600,17 @@ func extraTool(ex extra) (catalog.Tool, error) {
 		},
 		Operation: catalog.Operation{Path: ex.Base, Raw: true},
 	}, nil
+}
+
+// containsAny reports whether path holds one of the fragments. It is how the
+// curated fragments in api/toolsets.yaml turn into per-tool flags.
+func containsAny(path string, fragments []string) bool {
+	for _, f := range fragments {
+		if f != "" && strings.Contains(path, f) {
+			return true
+		}
+	}
+	return false
 }
 
 // annotations are honest: GET and HEAD read, DELETE destroys, PUT repeats

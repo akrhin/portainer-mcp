@@ -44,7 +44,16 @@ type Tool struct {
 	Input       map[string]any `yaml:"input,omitempty"`
 	Output      map[string]any `yaml:"output,omitempty"`
 	Operation   Operation      `yaml:"operation"`
-	Default     bool           `yaml:"default,omitempty"`
+	// StreamingParams are input properties that keep the response open when
+	// set true; a call that sets one is refused before the request.
+	StreamingParams []string `yaml:"streaming_params,omitempty"`
+	// StreamingPath marks an operation that streams whatever the arguments
+	// are, so only a bounded window ("until") makes the call answer.
+	StreamingPath bool `yaml:"streaming_path,omitempty"`
+	// StripManagedFields drops metadata.managedFields from the answer before
+	// it reaches the model; Kubernetes lists repeat it in every object.
+	StripManagedFields bool `yaml:"strip_managed_fields,omitempty"`
+	Default            bool `yaml:"default,omitempty"`
 }
 
 // Operation is the HTTP call a tool performs.
@@ -180,6 +189,12 @@ func (c *Catalog) Validate() error {
 			}
 			if t.Input != nil && t.Input["type"] != "object" {
 				return fmt.Errorf("catalog: tool %q: input schema must have type object", t.Name)
+			}
+			props, _ := t.Input["properties"].(map[string]any)
+			for _, name := range t.StreamingParams {
+				if _, ok := props[name]; !ok {
+					return fmt.Errorf("catalog: tool %q: streaming param %q is not an input property", t.Name, name)
+				}
 			}
 			if t.Output != nil && t.Output["type"] != "object" && t.Output["type"] != "array" {
 				return fmt.Errorf("catalog: tool %q: output schema must have type object or array", t.Name)

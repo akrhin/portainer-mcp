@@ -77,6 +77,81 @@ func (r *Response) JSON() bool {
 	return !r.Truncated && json.Valid(r.Body)
 }
 
+// ArrayPrefix decodes the elements of a JSON array answer that Do cut at
+// MaxResponse. It returns at most n of them, the number of elements that were
+// complete before the cut, and ok=false when the body is not an array or holds
+// no complete element.
+func ArrayPrefix(body []byte, n int) (items []any, total int, ok bool) {
+	if len(bytes.TrimLeft(body, " \t\r\n")) == 0 || bytes.TrimLeft(body, " \t\r\n")[0] != '[' {
+		return nil, 0, false
+	}
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.UseNumber() // keep numbers as they arrived: ids and sizes must not round
+	if _, err := dec.Token(); err != nil {
+		return nil, 0, false
+	}
+	for {
+		var v any
+		if err := dec.Decode(&v); err != nil {
+			break // the cut landed inside this element
+		}
+		total++
+		if len(items) < n {
+			items = append(items, v)
+		}
+	}
+	if total == 0 {
+		return nil, 0, false
+	}
+	return items, total, true
+}
+
+// StripField removes one field name from every object of a JSON document,
+// including nested ones, and returns the re-encoded document. A body that is
+// not JSON, or that carries no such field, comes back unchanged.
+func StripField(body []byte, field string) []byte {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.UseNumber()
+	var v any
+	if err := dec.Decode(&v); err != nil {
+		return body
+	}
+	if !stripField(v, field) {
+		return body
+	}
+	out, err := json.Marshal(v)
+	if err != nil {
+		return body
+	}
+	return out
+}
+
+func stripField(v any, field string) bool {
+	switch val := v.(type) {
+	case map[string]any:
+		changed := false
+		if _, ok := val[field]; ok {
+			delete(val, field)
+			changed = true
+		}
+		for _, sub := range val {
+			if stripField(sub, field) {
+				changed = true
+			}
+		}
+		return changed
+	case []any:
+		changed := false
+		for _, sub := range val {
+			if stripField(sub, field) {
+				changed = true
+			}
+		}
+		return changed
+	}
+	return false
+}
+
 var pathParam = regexp.MustCompile(`\{[^}]+\}`)
 
 // ExpandPath substitutes {name} placeholders with the argument values, escaping

@@ -78,6 +78,62 @@ func TestEveryOperationHasOneTool(t *testing.T) {
 	}
 }
 
+// TestResponseFlags keeps the two derived flags honest: they come from the
+// fragments in api/toolsets.yaml, the counts are the promise, and the samples
+// are the reason for each count.
+func TestResponseFlags(t *testing.T) {
+	t.Chdir("../..")
+
+	cat, err := build()
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	marks := map[string]string{}
+	params, paths, strips := 0, 0, 0
+	for _, ts := range cat.Toolsets {
+		for _, tool := range ts.Tools {
+			switch {
+			case len(tool.StreamingParams) > 0:
+				params++
+				marks[tool.Name] = "streams while " + tool.StreamingParams[0] + "=true"
+			case tool.StreamingPath:
+				paths++
+				marks[tool.Name] = "streams on the path"
+			}
+			if tool.StripManagedFields {
+				strips++
+				marks[tool.Name] += " strip"
+			}
+		}
+	}
+	if params != 4 || paths != 3 {
+		t.Fatalf("streaming tools = %d by parameter, %d by path, want 4 and 3", params, paths)
+	}
+	if strips != 117 {
+		t.Fatalf("tools that strip managedFields = %d, want 117", strips)
+	}
+	want := map[string]string{
+		"container_logs":       "streams while follow=true",
+		"task_logs":            "streams while follow=true",
+		"kubernetes_pod_logs":  "streams while follow=true strip",
+		"system_events":        "streams on the path",
+		"container_attach":     "streams on the path",
+		"exec_start":           "streams on the path",
+		"kubernetes_pods_list": " strip",
+		"k8s_raw":              " strip",
+	}
+	for name, mark := range want {
+		if got := marks[name]; got != mark {
+			t.Fatalf("%s = %q, want %q", name, got, mark)
+		}
+	}
+	for _, name := range []string{"container_list", "stack_list", "system_info"} {
+		if got := marks[name]; got != "" {
+			t.Fatalf("%s = %q, want no response flag", name, got)
+		}
+	}
+}
+
 func TestToolName(t *testing.T) {
 	m := mapping{Aliases: map[string]string{"git_ops": "gitops"}}
 	cases := []struct {

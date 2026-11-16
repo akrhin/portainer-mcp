@@ -76,6 +76,23 @@ skip_tags: [websocket]
 # would register and then fail on every call.
 skip_paths: ["/containers/{id}/attach/ws"]
 
+# Operations that do not answer on their own. A tool whose input has one of
+# streaming_params is marked with it: a call that sets that parameter true keeps
+# the response open until the client gives up, so the handler refuses it before
+# sending anything. streaming_paths marks operations that stream whatever the
+# arguments are; those are refused unless the caller bounds them with "until".
+streaming_params: [follow]
+streaming_paths:
+  - /docker/events
+  - /containers/{id}/attach
+  - /exec/{id}/start
+
+# Kubernetes answers repeat metadata.managedFields in every object, which is
+# most of their volume. A tool whose operation path contains one of these
+# fragments carries strip_managed_fields: true, and the handler drops the field
+# before the answer reaches the model.
+strip_managed_fields_paths: [/kubernetes/]
+
 # Words the camelCase splitter breaks apart, rejoined. Sorted by the generator.
 word_aliases:
   git_ops: gitops

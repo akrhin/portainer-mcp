@@ -46,9 +46,11 @@ func (e *env) call(t catalog.Tool) handler {
 			}
 		}
 	}
-	sort.Strings(query)
 
 	return func(ctx context.Context, args map[string]any) (*mcp.CallToolResult, error) {
+		if err := unbounded(t, args); err != nil {
+			return nil, err
+		}
 		c, err := e.client(args)
 		if err != nil {
 			return nil, err
@@ -101,29 +103,82 @@ func (e *env) call(t catalog.Tool) handler {
 		if err != nil {
 			return nil, err
 		}
-		return apiResult(resp), nil
+		return apiResult(t, resp), nil
 	}
 }
 
+// arrayPage is how many elements of a cut JSON array answer a caller sees.
+const arrayPage = 50
+
+// unbounded refuses a streaming call before anything is sent: such a request
+// stays open until the client times out, and the model learns nothing from
+// waiting. The flags come from the catalog, not from a list kept here.
+func unbounded(t catalog.Tool, args map[string]any) error {
+	for _, name := range t.StreamingParams {
+		if v, ok := args[name].(bool); ok && v {
+			return fmt.Errorf("this operation streams while %s=true and would not return until the client times out: pass %s=false, or bound the window with until", name, name)
+		}
+	}
+	if !t.StreamingPath {
+		return nil
+	}
+	if until, ok := args["until"].(string); ok && until != "" {
+		return nil
+	}
+	return errors.New("this operation streams and does not return on its own: set until to bound the window, or use a list or log tool instead")
+}
+
 // apiResult turns an API answer into a tool result: parsed JSON as structured
-// content, everything else as text.
-func apiResult(resp *portainer.Response) *mcp.CallToolResult {
-	text := string(resp.Body)
+// content, everything else as text. A cut array answer becomes a readable page
+// instead of a broken prefix.
+func apiResult(t catalog.Tool, resp *portainer.Response) *mcp.CallToolResult {
+	body := resp.Body
+	if t.StripManagedFields {
+		body = portainer.StripField(body, "managedFields")
+	}
 	var structured any
-	if resp.JSON() && len(resp.Body) > 0 {
+	if resp.JSON() {
 		var v any
-		if json.Unmarshal(resp.Body, &v) == nil {
+		if json.Unmarshal(body, &v) == nil {
 			structured = v
 		}
 	}
-	if len(resp.Body) == 0 {
+	text := string(body)
+	if len(body) == 0 {
 		text = fmt.Sprintf("HTTP %d: empty body", resp.Status)
 	}
 	if resp.Truncated {
+		if page, ok := arrayPageResult(t, body); ok {
+			return page
+		}
 		text += fmt.Sprintf("\n…[truncated at %d bytes: ask for a narrower filter or a smaller range]", portainer.MaxResponse)
 	}
 	return &mcp.CallToolResult{
 		Content:           []mcp.Content{&mcp.TextContent{Text: text}},
 		StructuredContent: structured,
 	}
+}
+
+// arrayPageResult answers the first elements of a cut array with the counts
+// and the way to get the rest.
+func arrayPageResult(t catalog.Tool, body []byte) (*mcp.CallToolResult, bool) {
+	items, total, ok := portainer.ArrayPrefix(body, arrayPage)
+	if !ok {
+		return nil, false
+	}
+	page := map[string]any{
+		"items":      items,
+		"_truncated": true,
+		"_total":     total,
+		"_hint": fmt.Sprintf("%d items arrived before the %d-byte cut, the first %d are shown: use %s with a narrower filter or pagination",
+			total, portainer.MaxResponse, len(items), t.Name),
+	}
+	text, err := json.Marshal(page)
+	if err != nil {
+		return nil, false
+	}
+	return &mcp.CallToolResult{
+		Content:           []mcp.Content{&mcp.TextContent{Text: string(text)}},
+		StructuredContent: page,
+	}, true
 }

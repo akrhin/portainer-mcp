@@ -996,6 +996,7 @@ toolsets:
           operation:
             method: POST
             path: /api/endpoints/{environment}/docker/containers/{id}/attach
+          streaming_path: true
         - name: container_changes
           description: 'Get changes on a container’s filesystem Returns which files in a container''s filesystem have been added, deleted, or modified. The `Kind` of modification can be one of:'
           annotations:
@@ -1360,6 +1361,8 @@ toolsets:
           operation:
             method: GET
             path: /api/endpoints/{environment}/docker/containers/{id}/logs
+          streaming_params:
+            - follow
           default: true
         - name: container_pause
           description: Pause a container Use the freezer cgroup to suspend all processes in a container.
@@ -1996,6 +1999,7 @@ toolsets:
             method: POST
             path: /api/endpoints/{environment}/docker/exec/{id}/start
             body: body
+          streaming_path: true
         - name: image_attestations
           description: Get attestation statements for an image Return the in-toto attestation statements attached to the image for the given platform. The daemon locates the attestation manifest(s) that reference the matching platform image manifest, reads their statement layers, and returns the verbatim statement JSON together with layer metadata.
           annotations:
@@ -4393,6 +4397,8 @@ toolsets:
           operation:
             method: GET
             path: /api/endpoints/{environment}/docker/services/{id}/logs
+          streaming_params:
+            - follow
         - name: service_update
           description: Update a service
           annotations:
@@ -4777,6 +4783,8 @@ toolsets:
           operation:
             method: GET
             path: /api/endpoints/{environment}/docker/tasks/{id}/logs
+          streaming_params:
+            - follow
     - name: k8s
       tools:
         - name: applications_resources_list
@@ -4807,6 +4815,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/metrics/applications_resources
+          strip_managed_fields: true
         - name: cluster_role_bindings_delete
           description: 'Delete cluster role bindings Delete the provided list of cluster role bindings. **Access policy**: Authenticated user.'
           annotations:
@@ -4834,6 +4843,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/cluster_role_bindings/delete
             body: body
+          strip_managed_fields: true
         - name: cluster_roles_delete
           description: 'Delete cluster roles Delete the provided list of cluster roles. **Access policy**: Authenticated user.'
           annotations:
@@ -4861,6 +4871,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/cluster_roles/delete
             body: body
+          strip_managed_fields: true
         - name: cron_jobs_delete
           description: 'Delete Cron Jobs Delete the provided list of Cron Jobs. **Access policy**: Authenticated user.'
           annotations:
@@ -4888,6 +4899,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/cron_jobs/delete
             body: body
+          strip_managed_fields: true
         - name: dry_run_kubernetes_manifests
           description: Validate Kubernetes manifests without applying them Validate Kubernetes manifests against the cluster with a server-side dry-run apply, without persisting anything. Each resource is reported on its own, so a rejected resource does not hide the outcome of the others. The dry-run runs with the permissions of the requesting user, so it also surfaces missing permissions. A resource living in a…
           annotations:
@@ -4918,6 +4930,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/manifests/dry_run
             body: body
+          strip_managed_fields: true
         - name: jobs_delete
           description: 'Delete Jobs Delete the provided list of Jobs. **Access policy**: Authenticated user.'
           annotations:
@@ -4945,6 +4958,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/jobs/delete
             body: body
+          strip_managed_fields: true
         - name: kubernetes_applications_count
           description: 'Get Applications count Get the count of Applications across all namespaces in the cluster. If the nodeName is provided, it will return the count of applications running on that node. **Access policy**: Authenticated user.'
           annotations:
@@ -4966,6 +4980,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/applications/count
+          strip_managed_fields: true
         - name: kubernetes_applications_list
           description: 'Get a list of applications across all namespaces in the cluster. If the nodeName is provided, it will return the applications running on that node. Get a list of applications across all namespaces in the cluster. If the nodeName is provided, it will return the applications running on that node. **Access policy**: authenticated'
           annotations:
@@ -5000,6 +5015,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/applications
+          strip_managed_fields: true
         - name: kubernetes_cluster_ingresses_count
           description: 'Get Ingresses count Get the number of kubernetes ingresses within the given environment. **Access policy**: Authenticated user.'
           annotations:
@@ -5021,6 +5037,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/ingresses/count
+          strip_managed_fields: true
         - name: kubernetes_cluster_ingresses_list
           description: 'Get kubernetes ingresses at the cluster level Get kubernetes ingresses at the cluster level for the provided environment. **Access policy**: Authenticated user.'
           annotations:
@@ -5050,6 +5067,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/ingresses
+          strip_managed_fields: true
           default: true
         - name: kubernetes_cluster_role_bindings_list
           description: 'Get a list of kubernetes cluster role bindings Get a list of kubernetes cluster role bindings within the given environment at the cluster level. **Access policy**: Authenticated user.'
@@ -5077,6 +5095,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/clusterrolebindings
+          strip_managed_fields: true
         - name: kubernetes_cluster_roles_list
           description: 'Get a list of kubernetes cluster roles Get a list of kubernetes cluster roles within the given environment at the cluster level. **Access policy**: Authenticated user.'
           annotations:
@@ -5103,6 +5122,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/clusterroles
+          strip_managed_fields: true
         - name: kubernetes_config_list
           description: 'Generate a kubeconfig file Generate a kubeconfig file that allows a client to communicate with the Kubernetes API server **Access policy**: Authenticated user.'
           annotations:
@@ -5132,6 +5152,7 @@ toolsets:
             csv:
                 - excludeIds
                 - ids
+          strip_managed_fields: true
         - name: kubernetes_config_map_create
           description: 'Create a ConfigMap Create a ConfigMap in the given namespace. The response carries the created ConfigMap''s metadata only, not its data. **Access policy**: Authenticated user.'
           annotations:
@@ -5165,6 +5186,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/namespaces/{namespace}/configmaps
             body: body
+          strip_managed_fields: true
         - name: kubernetes_config_map_delete
           description: 'Delete a ConfigMap Delete a ConfigMap in the given namespace. **Access policy**: Authenticated user.'
           annotations:
@@ -5194,6 +5216,7 @@ toolsets:
           operation:
             method: DELETE
             path: /api/kubernetes/{id}/namespaces/{namespace}/configmaps/{configmap}
+          strip_managed_fields: true
         - name: kubernetes_config_map_inspect
           description: 'Get a ConfigMap Get a ConfigMap by name for a given namespace. **Access policy**: Authenticated user.'
           annotations:
@@ -5226,6 +5249,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/configmaps/{configmap}
+          strip_managed_fields: true
         - name: kubernetes_config_map_update
           description: 'Update a ConfigMap Update a ConfigMap in the given namespace. A nil field leaves the live value untouched, so an empty map clears it, and binary data is preserved. The response carries the updated ConfigMap''s metadata only. **Access policy**: Authenticated user.'
           annotations:
@@ -5264,6 +5288,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/namespaces/{namespace}/configmaps/{configmap}
             body: body
+          strip_managed_fields: true
         - name: kubernetes_config_maps_count
           description: 'Get ConfigMaps count Get the count of ConfigMaps across all namespaces in the cluster. For non-admin users, it will only return the count of ConfigMaps based on the namespaces that they have access to. **Access policy**: Authenticated user.'
           annotations:
@@ -5285,6 +5310,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/configmaps/count
+          strip_managed_fields: true
         - name: kubernetes_config_maps_list
           description: 'Get a list of ConfigMaps Get a list of ConfigMaps across all namespaces in the cluster. For non-admin users, it will only return ConfigMaps based on the namespaces that they have access to. **Access policy**: Authenticated user.'
           annotations:
@@ -5315,6 +5341,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/configmaps
+          strip_managed_fields: true
           default: true
         - name: kubernetes_cron_jobs_list
           description: 'Get a list of kubernetes Cron Jobs Get a list of kubernetes Cron Jobs that the user has access to. **Access policy**: Authenticated user.'
@@ -5342,6 +5369,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/cron_jobs
+          strip_managed_fields: true
         - name: kubernetes_dashboard_list
           description: 'Get the dashboard summary data Get the dashboard summary data which is simply a count of a range of different commonly used kubernetes resources. **Access policy**: Authenticated user.'
           annotations:
@@ -5368,6 +5396,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/dashboard
+          strip_managed_fields: true
         - name: kubernetes_deployment_create
           description: 'Create a Kubernetes deployment Create a deployment in the given namespace. The namespace comes from the route, and the payload models the fields the deployment forms drive. **Access policy**: Authenticated user.'
           annotations:
@@ -5401,6 +5430,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/namespaces/{namespace}/deployments
             body: body
+          strip_managed_fields: true
         - name: kubernetes_deployment_delete
           description: 'Delete a Kubernetes deployment Delete a deployment in the given namespace. The replica sets and pods it owns are garbage collected by the cluster. **Access policy**: Authenticated user.'
           annotations:
@@ -5430,6 +5460,7 @@ toolsets:
           operation:
             method: DELETE
             path: /api/kubernetes/{id}/namespaces/{namespace}/deployments/{name}
+          strip_managed_fields: true
         - name: kubernetes_deployment_inspect
           description: 'Get a Kubernetes deployment Get a Kubernetes deployment in the given namespace. The response is trimmed of server-managed and heavy fields (managed fields, last-applied-config annotation) while preserving the full pod template, spec and resourceVersion so an edit form can be reconstructed from the live cluster and the workload subsequently updated. **Access policy**: Authenticated user.'
           annotations:
@@ -5462,6 +5493,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/deployments/{name}
+          strip_managed_fields: true
         - name: kubernetes_deployment_patch
           description: 'Annotate a Kubernetes deployment Add or overwrite annotations on a deployment and on the pods it creates. Annotations the payload does not name are kept. Changing a pod annotation rolls the workload, which is how a rollout restart is triggered. **Access policy**: Authenticated user.'
           annotations:
@@ -5500,6 +5532,7 @@ toolsets:
             method: PATCH
             path: /api/kubernetes/{id}/namespaces/{namespace}/deployments/{name}
             body: body
+          strip_managed_fields: true
         - name: kubernetes_deployment_rollback
           description: 'Roll a Kubernetes deployment back Roll a deployment back to an earlier revision by replaying the pod template the corresponding replica set recorded. A revision of 0, or an omitted one, selects the revision immediately before the current. **Access policy**: Authenticated user.'
           annotations:
@@ -5538,6 +5571,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/namespaces/{namespace}/deployments/{name}/rollback
             body: body
+          strip_managed_fields: true
           default: true
         - name: kubernetes_deployment_scale
           description: 'Scale a Kubernetes deployment Set the desired replica count of a deployment in the given namespace. **Access policy**: Authenticated user.'
@@ -5578,6 +5612,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/namespaces/{namespace}/deployments/{name}/scale
             body: body
+          strip_managed_fields: true
           default: true
         - name: kubernetes_deployment_update
           description: 'Update a Kubernetes deployment Update a deployment in the given namespace. The payload is merged onto the live deployment: fields it does not model, such as the update strategy or the pod affinity rules, are preserved, and a field left out leaves the live value untouched. The selector is immutable and is ignored. **Access policy**: Authenticated user.'
@@ -5617,6 +5652,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/namespaces/{namespace}/deployments/{name}
             body: body
+          strip_managed_fields: true
         - name: kubernetes_deployments_list
           description: 'Get Kubernetes deployments Get the list of Kubernetes deployments across all namespaces the user can access. **Access policy**: Authenticated user.'
           annotations:
@@ -5647,6 +5683,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/deployments
+          strip_managed_fields: true
         - name: kubernetes_deployments_namespace_list
           description: 'Get Kubernetes deployments within a namespace Get the list of Kubernetes deployments in the given namespace. **Access policy**: Authenticated user.'
           annotations:
@@ -5681,6 +5718,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/deployments
+          strip_managed_fields: true
         - name: kubernetes_ingress_classes_list
           description: 'Get Kubernetes ingress classes Get the list of Kubernetes ingress classes (cluster-scoped), as read models, distinct from the ingress controllers returned by /ingresscontrollers. **Access policy**: Authenticated user.'
           annotations:
@@ -5707,6 +5745,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/ingressclasses
+          strip_managed_fields: true
         - name: kubernetes_ingress_controllers_list
           description: 'Get a list of ingress controllers Get a list of ingress controllers for the given environment. If the allowedOnly query parameter is set, only ingress controllers that are allowed by the environment''s ingress configuration will be returned. **Access policy**: Authenticated user.'
           annotations:
@@ -5736,6 +5775,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/ingresscontrollers
+          strip_managed_fields: true
         - name: kubernetes_ingress_controllers_namespace_list
           description: 'Get a list ingress controllers by namespace Get a list of ingress controllers for the given environment in the provided namespace. **Access policy**: Authenticated user.'
           annotations:
@@ -5766,6 +5806,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/ingresscontrollers
+          strip_managed_fields: true
         - name: kubernetes_ingress_controllers_namespace_update
           description: 'Update (block/unblock) ingress controllers by namespace Update (block/unblock) ingress controllers by namespace for the provided environment. **Access policy**: Authenticated user.'
           annotations:
@@ -5797,6 +5838,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/namespaces/{namespace}/ingresscontrollers
             body: body
+          strip_managed_fields: true
         - name: kubernetes_ingress_controllers_update
           description: 'Update (block/unblock) ingress controllers Update (block/unblock) ingress controllers for the provided environment. **Access policy**: Authenticated user.'
           annotations:
@@ -5824,6 +5866,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/ingresscontrollers
             body: body
+          strip_managed_fields: true
         - name: kubernetes_ingress_create
           description: 'Create an Ingress Create an Ingress for the provided environment. **Access policy**: Authenticated user.'
           annotations:
@@ -5854,6 +5897,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/namespaces/{namespace}/ingresses
             body: body
+          strip_managed_fields: true
         - name: kubernetes_ingress_inspect
           description: 'Get an Ingress by name Get an Ingress by name for the provided environment. **Access policy**: Authenticated user.'
           annotations:
@@ -5886,6 +5930,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/ingresses/{ingress}
+          strip_managed_fields: true
         - name: kubernetes_ingress_update
           description: 'Update an Ingress Update an Ingress for the provided environment. **Access policy**: Authenticated user.'
           annotations:
@@ -5917,6 +5962,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/namespaces/{namespace}/ingresses
             body: body
+          strip_managed_fields: true
         - name: kubernetes_ingresses_delete
           description: 'Delete one or more Ingresses Delete one or more Ingresses in the provided environment. **Access policy**: Authenticated user.'
           annotations:
@@ -5944,6 +5990,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/ingresses/delete
             body: body
+          strip_managed_fields: true
         - name: kubernetes_ingresses_list
           description: 'Get a list of Ingresses Get a list of Ingresses. If namespace is provided, it will return the list of Ingresses in that namespace. **Access policy**: Authenticated user.'
           annotations:
@@ -5974,6 +6021,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/ingresses
+          strip_managed_fields: true
         - name: kubernetes_jobs_list
           description: 'Get a list of kubernetes Jobs Get a list of kubernetes Jobs that the user has access to. **Access policy**: Authenticated user.'
           annotations:
@@ -6003,6 +6051,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/jobs
+          strip_managed_fields: true
         - name: kubernetes_max_resource_limits_list
           description: 'Get max CPU and memory limits of all nodes within k8s cluster Get max CPU and memory limits (unused resources) of all nodes within k8s cluster. **Access policy**: Authenticated user.'
           annotations:
@@ -6027,6 +6076,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/max_resource_limits
+          strip_managed_fields: true
         - name: kubernetes_metrics_node_inspect
           description: 'Get live metrics for a node Get live metrics for the specified node. **Access policy**: Authenticated user.'
           annotations:
@@ -6055,6 +6105,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/metrics/nodes/{name}
+          strip_managed_fields: true
         - name: kubernetes_metrics_nodes_list
           description: 'Get a list of nodes with their live metrics Get a list of metrics associated with all nodes of a cluster. **Access policy**: Authenticated user.'
           annotations:
@@ -6079,6 +6130,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/metrics/nodes
+          strip_managed_fields: true
         - name: kubernetes_metrics_pod_inspect
           description: 'Get live metrics for a pod Get live metrics for the specified pod. **Access policy**: Authenticated user.'
           annotations:
@@ -6111,6 +6163,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/metrics/pods/{namespace}/{name}
+          strip_managed_fields: true
         - name: kubernetes_metrics_pods_inspect
           description: 'Get a list of pods with their live metrics Get a list of pods with their live metrics for the specified namespace. **Access policy**: Authenticated user.'
           annotations:
@@ -6139,6 +6192,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/metrics/pods/namespace/{namespace}
+          strip_managed_fields: true
         - name: kubernetes_namespace_create
           description: 'Create a namespace Create a namespace within the given environment. **Access policy**: Authenticated user.'
           annotations:
@@ -6169,6 +6223,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/namespaces
             body: body
+          strip_managed_fields: true
         - name: kubernetes_namespace_delete
           description: 'Delete kubernetes namespaces Delete one or more kubernetes namespaces within the given environment. **Access policy**: Authenticated user.'
           annotations:
@@ -6196,6 +6251,7 @@ toolsets:
             method: DELETE
             path: /api/kubernetes/{id}/namespaces
             body: body
+          strip_managed_fields: true
         - name: kubernetes_namespace_deprecated_update
           description: 'Update a namespace Update a namespace within the given environment. **Access policy**: Authenticated user.'
           annotations:
@@ -6230,6 +6286,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/namespaces
             body: body
+          strip_managed_fields: true
         - name: kubernetes_namespace_inspect
           description: 'Get namespace details Get namespace details for the provided namespace within the given environment. **Access policy**: Authenticated user.'
           annotations:
@@ -6261,6 +6318,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}
+          strip_managed_fields: true
         - name: kubernetes_namespace_update
           description: 'Update a namespace Update a namespace within the given environment. **Access policy**: Authenticated user.'
           annotations:
@@ -6295,6 +6353,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/namespaces/{namespace}
             body: body
+          strip_managed_fields: true
         - name: kubernetes_namespaces_count
           description: 'Get the total number of kubernetes namespaces within the given Portainer environment. Get the total number of kubernetes namespaces within the given environment, including the system namespaces. The total count depends on the user''s role and permissions. **Access policy**: Authenticated user.'
           annotations:
@@ -6316,6 +6375,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/count
+          strip_managed_fields: true
         - name: kubernetes_namespaces_list
           description: 'Get a list of namespaces Get a list of all namespaces within the given environment based on the user role and permissions. If the user is an admin, they can access all namespaces. If the user is not an admin, they can only access namespaces that they have access to. **Access policy**: Authenticated user.'
           annotations:
@@ -6348,6 +6408,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces
+          strip_managed_fields: true
           default: true
         - name: kubernetes_namespaces_toggle_system
           description: 'Toggle the system state for a namespace Toggle the system state for a namespace **Access policy**: Administrator or environment administrator.'
@@ -6381,6 +6442,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/namespaces/{namespace}/system
             body: body
+          strip_managed_fields: true
         - name: kubernetes_nodes_limits_list
           description: 'Get CPU and memory limits of all nodes within k8s cluster Get CPU and memory limits of all nodes within k8s cluster. **Access policy**: Authenticated user.'
           annotations:
@@ -6405,6 +6467,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/nodes_limits
+          strip_managed_fields: true
         - name: kubernetes_nodes_list
           description: 'Get Kubernetes cluster nodes Returns the list of Kubernetes nodes for the selected environment. **Access policy**: Authenticated user.'
           annotations:
@@ -6431,6 +6494,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/nodes
+          strip_managed_fields: true
           default: true
         - name: kubernetes_persistent_volume_claim_create
           description: 'Create a PersistentVolumeClaim Create a PersistentVolumeClaim in the given namespace. The access mode defaults to ReadWriteOnce and an omitted storage class leaves the choice to the cluster default. **Access policy**: Authenticated user.'
@@ -6466,6 +6530,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/namespaces/{namespace}/persistent_volume_claims
             body: body
+          strip_managed_fields: true
         - name: kubernetes_persistent_volume_claim_inspect
           description: 'Get a specific PersistentVolumeClaim Get a PersistentVolumeClaim by name within a namespace. **Access policy**: Authenticated user.'
           annotations:
@@ -6498,6 +6563,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/persistent_volume_claims/{name}
+          strip_managed_fields: true
         - name: kubernetes_persistent_volume_claim_resize
           description: 'Resize a PersistentVolumeClaim Resize a PVC to a new size. The StorageClass must support volume expansion. **Access policy**: Authenticated user.'
           annotations:
@@ -6526,6 +6592,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/persistent_volume_claims/resize
             body: body
+          strip_managed_fields: true
         - name: kubernetes_persistent_volume_claims_delete
           description: 'Delete PersistentVolumeClaims Delete the provided list of PersistentVolumeClaims. **Access policy**: Authenticated user.'
           annotations:
@@ -6553,6 +6620,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/persistent_volume_claims/delete
             body: body
+          strip_managed_fields: true
         - name: kubernetes_persistent_volume_claims_list
           description: 'Get all PersistentVolumeClaims Get a list of all PersistentVolumeClaims within the given environment. Scoped by namespace for non-admin users. **Access policy**: Authenticated user.'
           annotations:
@@ -6579,6 +6647,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/persistent_volume_claims
+          strip_managed_fields: true
           default: true
         - name: kubernetes_persistent_volume_claims_namespace_list
           description: 'Get PersistentVolumeClaims in a namespace Get a list of PersistentVolumeClaims in the specified namespace. **Access policy**: Authenticated user.'
@@ -6610,6 +6679,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/persistent_volume_claims
+          strip_managed_fields: true
         - name: kubernetes_persistent_volume_inspect
           description: 'Get a specific PersistentVolume Get a PersistentVolume by name in the given environment. **Access policy**: Authenticated user.'
           annotations:
@@ -6638,6 +6708,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/persistent_volumes/{name}
+          strip_managed_fields: true
         - name: kubernetes_persistent_volume_reclaim_policy_update
           description: 'Update reclaim policy of a PersistentVolume Update the reclaim policy of a PersistentVolume. **Access policy**: Authenticated user.'
           annotations:
@@ -6666,6 +6737,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/persistent_volumes/reclaim_policy
             body: body
+          strip_managed_fields: true
         - name: kubernetes_persistent_volumes_delete
           description: 'Delete PersistentVolumes Delete the provided list of PersistentVolumes. **Access policy**: Authenticated user.'
           annotations:
@@ -6693,6 +6765,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/persistent_volumes/delete
             body: body
+          strip_managed_fields: true
         - name: kubernetes_persistent_volumes_list
           description: 'Get all PersistentVolumes in the cluster Get a list of all PersistentVolumes in the given environment. **Access policy**: Authenticated user.'
           annotations:
@@ -6719,6 +6792,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/persistent_volumes
+          strip_managed_fields: true
         - name: kubernetes_pod_delete
           description: 'Delete a kubernetes pod Delete a single Kubernetes pod in the given namespace. The owning controller (Deployment, StatefulSet, DaemonSet, ...) is responsible for recreating the pod. For naked pods the pod is removed permanently. **Access policy**: Authenticated user.'
           annotations:
@@ -6748,6 +6822,7 @@ toolsets:
           operation:
             method: DELETE
             path: /api/kubernetes/{id}/namespaces/{namespace}/pods/{name}
+          strip_managed_fields: true
           default: true
         - name: kubernetes_pod_logs
           description: 'Get logs for a Kubernetes pod Stream the logs for a pod in the given namespace as text/plain. When follow is set the response stays open and emits new log lines until the client disconnects. When the pod has more than one container, the container query parameter is required. **Access policy**: Authenticated user.'
@@ -6796,6 +6871,9 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/pods/{name}/log
+          streaming_params:
+            - follow
+          strip_managed_fields: true
           default: true
         - name: kubernetes_pod_restart
           description: 'Restart all containers in a Kubernetes pod Restart all containers in a single Kubernetes pod in place using the Kubernetes 1.35 alpha pod-restart subresource. The pod itself is preserved. Requires the cluster to expose the corresponding subresource (and the matching feature gate to be enabled). **Access policy**: Authenticated user.'
@@ -6826,6 +6904,7 @@ toolsets:
           operation:
             method: POST
             path: /api/kubernetes/{id}/namespaces/{namespace}/pods/{name}/restart
+          strip_managed_fields: true
           default: true
         - name: kubernetes_pods_list
           description: 'Get Kubernetes pods Get the list of Kubernetes pods across all namespaces the user can access. **Access policy**: Authenticated user.'
@@ -6857,6 +6936,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/pods
+          strip_managed_fields: true
           default: true
         - name: kubernetes_pods_namespace_list
           description: 'Get Kubernetes pods within a namespace Get the list of Kubernetes pods in the given namespace. **Access policy**: Authenticated user.'
@@ -6892,6 +6972,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/pods
+          strip_managed_fields: true
         - name: kubernetes_rbac_status
           description: 'Check if RBAC is enabled Check if RBAC is enabled in the specified Kubernetes cluster. **Access policy**: Authenticated user.'
           annotations:
@@ -6913,6 +6994,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/rbac_enabled
+          strip_managed_fields: true
         - name: kubernetes_replica_sets_list
           description: 'Get Kubernetes replica sets within a namespace Get the list of Kubernetes replica sets in the given namespace, optionally restricted to those owned by a given deployment. This backs the deployment revisions view. The response uses the Kubernetes list shape ({items: [...]}). **Access policy**: Authenticated user.'
           annotations:
@@ -6950,6 +7032,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/replicasets
+          strip_managed_fields: true
         - name: kubernetes_resource_quotas_list
           description: 'Get Kubernetes resource quotas within a namespace Get the list of Kubernetes resource quotas in the given namespace. **Access policy**: Authenticated user.'
           annotations:
@@ -6978,6 +7061,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/resource_quotas
+          strip_managed_fields: true
         - name: kubernetes_role_bindings_list
           description: 'Get a list of kubernetes role bindings Get a list of kubernetes role bindings that the user has access to. **Access policy**: Authenticated user.'
           annotations:
@@ -7004,6 +7088,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/rolebindings
+          strip_managed_fields: true
         - name: kubernetes_roles_list
           description: 'Get a list of kubernetes roles Get a list of kubernetes roles that the user has access to. **Access policy**: Authenticated user.'
           annotations:
@@ -7030,6 +7115,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/roles
+          strip_managed_fields: true
         - name: kubernetes_secret_create
           description: 'Create a Secret Create a Secret in the given namespace. Data values are sent as plain strings and encoded server-side. The response carries the created Secret''s metadata only, not its data. **Access policy**: Authenticated user.'
           annotations:
@@ -7063,6 +7149,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/namespaces/{namespace}/secrets
             body: body
+          strip_managed_fields: true
         - name: kubernetes_secret_delete
           description: 'Delete a Secret Delete a Secret in the given namespace. **Access policy**: Authenticated user.'
           annotations:
@@ -7092,6 +7179,7 @@ toolsets:
           operation:
             method: DELETE
             path: /api/kubernetes/{id}/namespaces/{namespace}/secrets/{secret}
+          strip_managed_fields: true
         - name: kubernetes_secret_inspect
           description: 'Get a Secret Get a Secret by name for a given namespace. **Access policy**: Authenticated user.'
           annotations:
@@ -7124,6 +7212,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/secrets/{secret}
+          strip_managed_fields: true
         - name: kubernetes_secret_update
           description: 'Update a Secret Update a Secret in the given namespace. A nil field leaves the live value untouched, so an empty map clears it, and the secret type cannot be changed. The response carries the updated Secret''s metadata only. **Access policy**: Authenticated user.'
           annotations:
@@ -7162,6 +7251,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/namespaces/{namespace}/secrets/{secret}
             body: body
+          strip_managed_fields: true
         - name: kubernetes_secrets_count
           description: 'Get Secrets count Get the count of Secrets across all namespaces that the user has access to. **Access policy**: Authenticated user.'
           annotations:
@@ -7183,6 +7273,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/secrets/count
+          strip_managed_fields: true
         - name: kubernetes_secrets_list
           description: 'Get a list of Secrets Get a list of Secrets for a given namespace. If isUsed is set to true, information about the applications that use the secrets is also returned. **Access policy**: Authenticated user.'
           annotations:
@@ -7213,6 +7304,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/secrets
+          strip_managed_fields: true
           default: true
         - name: kubernetes_service_account_image_pull_secrets_update
           description: 'Update image pull secrets for a service account Replace the imagePullSecrets list on a service account with the provided list. **Access policy**: Authenticated user.'
@@ -7250,6 +7342,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/namespaces/{namespace}/service_accounts/{name}/image_pull_secrets
             body: body
+          strip_managed_fields: true
         - name: kubernetes_service_account_inspect
           description: 'Get a kubernetes service account Get a kubernetes service account in the given namespace. **Access policy**: Authenticated user.'
           annotations:
@@ -7282,6 +7375,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/service_accounts/{name}
+          strip_managed_fields: true
         - name: kubernetes_service_accounts_list
           description: 'Get a list of kubernetes service accounts Get a list of kubernetes service accounts that the user has access to. **Access policy**: Authenticated user.'
           annotations:
@@ -7308,6 +7402,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/serviceaccounts
+          strip_managed_fields: true
         - name: kubernetes_service_create
           description: 'Create a service Create a service within a given namespace **Access policy**: Authenticated user.'
           annotations:
@@ -7338,6 +7433,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/namespaces/{namespace}/services
             body: body
+          strip_managed_fields: true
         - name: kubernetes_service_update
           description: 'Update a service Update a service within a given namespace. **Access policy**: Authenticated user.'
           annotations:
@@ -7369,6 +7465,7 @@ toolsets:
             method: PUT
             path: /api/kubernetes/{id}/namespaces/{namespace}/services
             body: body
+          strip_managed_fields: true
         - name: kubernetes_services_count
           description: 'Get services count Get the count of services that the user has access to. **Access policy**: Authenticated user.'
           annotations:
@@ -7390,6 +7487,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/services/count
+          strip_managed_fields: true
         - name: kubernetes_services_delete
           description: 'Delete services Delete the provided list of services. **Access policy**: Authenticated user.'
           annotations:
@@ -7417,6 +7515,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/services/delete
             body: body
+          strip_managed_fields: true
         - name: kubernetes_services_list
           description: 'Get a list of services Get a list of services that the user has access to. **Access policy**: Authenticated user.'
           annotations:
@@ -7446,6 +7545,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/services
+          strip_managed_fields: true
           default: true
         - name: kubernetes_services_namespace_list
           description: 'Get a list of services for a given namespace Get a list of services for a given namespace. **Access policy**: Authenticated user.'
@@ -7477,6 +7577,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/services
+          strip_managed_fields: true
         - name: kubernetes_storage_class_inspect
           description: 'Get a specific StorageClass Get a StorageClass by name in the given environment. **Access policy**: Authenticated user.'
           annotations:
@@ -7505,6 +7606,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/storage_classes/{name}
+          strip_managed_fields: true
         - name: kubernetes_storage_classes_delete
           description: 'Delete StorageClasses Delete the provided list of StorageClasses. **Access policy**: Authenticated user.'
           annotations:
@@ -7532,6 +7634,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/storage_classes/delete
             body: body
+          strip_managed_fields: true
         - name: kubernetes_storage_classes_list
           description: 'Get all StorageClasses Get a list of all StorageClasses in the given environment. **Access policy**: Authenticated user.'
           annotations:
@@ -7558,6 +7661,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/storage_classes
+          strip_managed_fields: true
         - name: kubernetes_version
           description: 'Get the Kubernetes cluster version and Portainer-relevant capabilities Get the Kubernetes cluster version (major, minor, gitVersion, ...) as reported by the cluster''s discovery API, augmented with capability flags Portainer uses to gate UI features (e.g. supportsPodRestart). **Access policy**: Authenticated user.'
           annotations:
@@ -7582,6 +7686,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/version
+          strip_managed_fields: true
         - name: kubernetes_volume_inspect
           description: 'Get a Kubernetes volume within the given Portainer environment Get a Kubernetes volume within the given environment (Endpoint). The Endpoint ID must be a valid Portainer environment identifier. **Access policy**: Authenticated user.'
           annotations:
@@ -7614,6 +7719,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/volumes/{namespace}/{volume}
+          strip_managed_fields: true
         - name: kubernetes_volumes_count
           description: 'Get the total number of kubernetes volumes within the given Portainer environment. Get the total number of kubernetes volumes within the given environment (Endpoint). The total count depends on the user''s role and permissions. The Endpoint ID must be a valid Portainer environment identifier. **Access policy**: Authenticated user.'
           annotations:
@@ -7635,6 +7741,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/volumes/count
+          strip_managed_fields: true
         - name: kubernetes_volumes_list
           description: 'Get Kubernetes volumes within the given Portainer environment Get a list of all kubernetes volumes within the given environment (Endpoint). The Endpoint ID must be a valid Portainer environment identifier. **Access policy**: Authenticated user.'
           annotations:
@@ -7662,6 +7769,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/volumes
+          strip_managed_fields: true
         - name: kubernetes_volumes_namespace_list
           description: 'Get Kubernetes volumes within a namespace in the given Portainer environment Get a list of kubernetes volumes within the specified namespace in the given environment (Endpoint). The Endpoint ID must be a valid Portainer environment identifier. **Access policy**: Authenticated user.'
           annotations:
@@ -7693,6 +7801,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/volumes
+          strip_managed_fields: true
         - name: node_drain
           description: 'Drain a Kubernetes node Drain a Kubernetes node by safely evicting all pods from the node, preparing it for maintenance or removal **Access policy**: authenticated'
           annotations:
@@ -7723,6 +7832,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/nodes/{name}/drain
             body: body
+          strip_managed_fields: true
           default: true
         - name: resource_inspect
           description: 'Get a description of a kubernetes resource Get a description of a kubernetes resource. **Access policy**: Authenticated user.'
@@ -7759,6 +7869,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/describe
+          strip_managed_fields: true
         - name: role_bindings_delete
           description: 'Delete role bindings Delete the provided list of role bindings. **Access policy**: Authenticated user.'
           annotations:
@@ -7786,6 +7897,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/role_bindings/delete
             body: body
+          strip_managed_fields: true
         - name: roles_delete
           description: 'Delete roles Delete the provided list of roles. **Access policy**: Authenticated user.'
           annotations:
@@ -7813,6 +7925,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/roles/delete
             body: body
+          strip_managed_fields: true
         - name: service_accounts_delete
           description: 'Delete service accounts Delete the provided list of service accounts. **Access policy**: Authenticated user.'
           annotations:
@@ -7840,6 +7953,7 @@ toolsets:
             method: POST
             path: /api/kubernetes/{id}/service_accounts/delete
             body: body
+          strip_managed_fields: true
         - name: set_default_kubernetes_storage_class
           description: 'Set a StorageClass as default Set the specified StorageClass as the cluster default, removing default from any other. **Access policy**: Authenticated user.'
           annotations:
@@ -7866,6 +7980,7 @@ toolsets:
           operation:
             method: PUT
             path: /api/kubernetes/{id}/storage_classes/{name}/default
+          strip_managed_fields: true
     - name: helm
       tools:
         - name: helm_delete
@@ -7896,6 +8011,7 @@ toolsets:
           operation:
             method: DELETE
             path: /api/endpoints/{id}/kubernetes/helm/{release}
+          strip_managed_fields: true
           default: true
         - name: helm_get_history
           description: 'Get a historical list of releases Get a historical list of releases by release name **Access policy**: authenticated'
@@ -7930,6 +8046,7 @@ toolsets:
           operation:
             method: GET
             path: /api/endpoints/{id}/kubernetes/helm/{release}/history
+          strip_managed_fields: true
         - name: helm_inspect
           description: 'Get a helm release Get details of a helm release by release name **Access policy**: authenticated'
           annotations:
@@ -7967,6 +8084,7 @@ toolsets:
           operation:
             method: GET
             path: /api/endpoints/{id}/kubernetes/helm/{release}
+          strip_managed_fields: true
           default: true
         - name: helm_install
           description: 'Install Helm Chart **Access policy**: authenticated'
@@ -7998,6 +8116,7 @@ toolsets:
             method: POST
             path: /api/endpoints/{id}/kubernetes/helm
             body: body
+          strip_managed_fields: true
           default: true
         - name: helm_list
           description: 'List Helm Releases **Access policy**: authenticated'
@@ -8034,6 +8153,7 @@ toolsets:
           operation:
             method: GET
             path: /api/endpoints/{id}/kubernetes/helm
+          strip_managed_fields: true
           default: true
         - name: helm_repo_search
           description: 'Search Helm Charts **Access policy**: authenticated'
@@ -8111,6 +8231,7 @@ toolsets:
           operation:
             method: POST
             path: /api/endpoints/{id}/kubernetes/helm/{release}/rollback
+          strip_managed_fields: true
           default: true
         - name: helm_show
           description: 'Show Helm Chart Information **Access policy**: authenticated `repo` may be omitted when `chart` is a self-contained "oci://host/path" reference.'
@@ -8714,6 +8835,7 @@ toolsets:
             method: POST
             path: /api/stacks/create/kubernetes/string
             body: body
+          strip_managed_fields: true
         - name: stack_create_kubernetes_git
           description: 'Deploy a new kubernetes stack from a git repository Deploy a new stack into a Docker environment specified via the environment identifier. **Access policy**: authenticated'
           annotations:
@@ -8744,6 +8866,7 @@ toolsets:
             method: POST
             path: /api/stacks/create/kubernetes/repository
             body: body
+          strip_managed_fields: true
         - name: stack_create_kubernetes_url
           description: 'Deploy a new kubernetes stack from a url Deploy a new stack into a Docker environment specified via the environment identifier. **Access policy**: authenticated'
           annotations:
@@ -8774,6 +8897,7 @@ toolsets:
             method: POST
             path: /api/stacks/create/kubernetes/url
             body: body
+          strip_managed_fields: true
         - name: stack_delete
           description: 'Remove a stack Remove a stack. **Access policy**: restricted'
           annotations:
@@ -11782,6 +11906,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/events
+          strip_managed_fields: true
           default: true
         - name: kubernetes_events_namespace_list
           description: 'Gets kubernetes events for namespace Get events by optional query param resourceId for a given namespace. **Access policy**: Authenticated user.'
@@ -11816,6 +11941,7 @@ toolsets:
           operation:
             method: GET
             path: /api/kubernetes/{id}/namespaces/{namespace}/events
+          strip_managed_fields: true
           default: true
         - name: status_inspect
           description: 'Check Portainer status Deprecated: use the `/system/status` endpoint instead. Retrieve Portainer status **Access policy**: public'
@@ -11886,6 +12012,7 @@ toolsets:
           operation:
             method: GET
             path: /api/endpoints/{environment}/docker/events
+          streaming_path: true
           default: true
     - name: raw
       tools:
@@ -11978,6 +12105,7 @@ toolsets:
             method: ""
             path: /api/kubernetes/{environment}
             raw: true
+          strip_managed_fields: true
           default: true
         - name: portainer_raw
           description: Call any Portainer API path directly (method, path, query, JSON body). Use it only for an operation that no other tool covers; the path must start with / and is appended to /api.

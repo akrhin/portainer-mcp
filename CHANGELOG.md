@@ -18,8 +18,22 @@ No release has been cut yet. Everything below is on `main` and not yet tagged.
   (`core`, `docker`, `swarm`, `k8s`, `helm`, `stacks`, `gitops`, `edge`, `admin`,
   `observability`, `raw`) with their descriptions and `depends_on` edges — and
   `internal/catalog/generated.yaml` keeps every tool, generated from the Portainer
-  2.45 and Docker Engine 1.57 specifications: 395 tools, 87 of them in the default
+  2.45 and Docker Engine 1.57 specifications: 394 tools, 87 of them in the default
   set.
+- Streaming detection driven by the catalog: `streaming_params` and
+  `streaming_paths` in `api/toolsets.yaml` mark the seven operations that do not
+  answer on their own — four with a `follow` parameter, three whose path streams
+  whatever the arguments are. A call that would stay open until the client times
+  out is refused before the request, with the reason and the way to bound it.
+- `strip_managed_fields` in the catalog: the tools whose path lies under the
+  Kubernetes API (117 of them) drop `metadata.managedFields` at every depth, so a
+  Kubernetes list no longer arrives several times larger than it is.
+- An array answer cut at 1 MiB arrives as a page — the first 50 elements plus
+  `_truncated`, `_total` and a `_hint` naming the tool to narrow the list with —
+  instead of a broken prefix. Answers that are not arrays keep the marker.
+- `scripts/smoke.sh` probes `system_events` only under `SMOKE_STREAM=1`, and then
+  checks that it was refused rather than left hanging; without the variable it
+  fails the run when a streaming tool is in the probe list.
 - Catalog validation on startup: unique toolset and tool names, `readOnlyHint`
   required on every tool, `destructiveHint` required on write tools, `input` and
   `output` schemas constrained to `type: object`, dependencies must name known

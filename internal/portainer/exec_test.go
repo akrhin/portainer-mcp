@@ -2,6 +2,7 @@ package portainer
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -138,5 +139,53 @@ func TestAddQuery(t *testing.T) {
 	want := "a=true&b=x&b=y&c=x%2Cy"
 	if got := q.Encode(); got != want {
 		t.Fatalf("query = %q, want %q", got, want)
+	}
+}
+
+// TestArrayPrefix reads a JSON array that Do cut at MaxResponse: complete
+// elements count, a half-received one does not, and numbers keep their digits.
+func TestArrayPrefix(t *testing.T) {
+	body := []byte(`[{"a":123456789012345678},{"b":2},{"c":`)
+	items, total, ok := ArrayPrefix(body, 1)
+	if !ok || total != 2 || len(items) != 1 {
+		t.Fatalf("ArrayPrefix = %v, total %d, ok %v", items, total, ok)
+	}
+	first, _ := items[0].(map[string]any)
+	if got := first["a"].(json.Number).String(); got != "123456789012345678" {
+		t.Fatalf("number = %s, want the digits as they arrived", got)
+	}
+
+	for _, body := range []string{`{"a":1}`, `[]`, `[{"a":`, ``, `not json`} {
+		if _, _, ok := ArrayPrefix([]byte(body), 10); ok {
+			t.Fatalf("%q reported an array prefix", body)
+		}
+	}
+}
+
+// TestStripField drops one field name at every depth, keeps numbers exact, and
+// leaves a body without that field byte for byte.
+func TestStripField(t *testing.T) {
+	in := `[{"metadata":{"name":"p","managedFields":[{"manager":"k"}]},"n":123456789012345678,"nested":{"deep":[{"managedFields":[]}]}}]`
+	out := StripField([]byte(in), "managedFields")
+	if strings.Contains(string(out), "managedFields") {
+		t.Fatalf("field survived: %s", out)
+	}
+	var doc []map[string]any
+	if err := json.Unmarshal(out, &doc); err != nil {
+		t.Fatalf("stripped answer is not valid JSON: %v", err)
+	}
+	if doc[0]["metadata"].(map[string]any)["name"] != "p" {
+		t.Fatalf("sibling field lost: %s", out)
+	}
+	if got := doc[0]["n"].(float64); got != 123456789012345678 {
+		t.Fatalf("number = %v", got)
+	}
+
+	untouched := `{"Id":1,"Name":"web"}`
+	if got := StripField([]byte(untouched), "managedFields"); string(got) != untouched {
+		t.Fatalf("re-encoded a body without the field: %s", got)
+	}
+	if got := StripField([]byte("not json"), "managedFields"); string(got) != "not json" {
+		t.Fatalf("changed a non-JSON body: %s", got)
 	}
 }
