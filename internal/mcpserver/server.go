@@ -17,11 +17,20 @@ import (
 // Version is reported to MCP clients.
 const Version = "0.1.0"
 
-// Options are the command-line switches that override the config.
+// Options are the command-line switches that override the config, plus what
+// distinguishes the servers built from this package.
 type Options struct {
 	Toolsets   []string
 	ReadOnly   bool
 	Exhaustive bool
+	// Name is the implementation name reported to clients; portainer-mcp when empty.
+	Name string
+	// Open builds the client for one instance; Portainer when nil.
+	Open func(config.Instance) (*portainer.Client, error)
+	// AllowExec registers container_exec, which runs a command inside a
+	// container over the Arcane terminal websocket. Never registered in
+	// read-only mode.
+	AllowExec bool
 }
 
 // New builds the MCP server for the selected toolsets.
@@ -36,11 +45,19 @@ func New(cfg *config.Config, cat *catalog.Catalog, opts Options) (*mcp.Server, e
 		return nil, err
 	}
 
-	env, err := newEnv(cfg.Instances)
+	open := opts.Open
+	if open == nil {
+		open = openPortainer
+	}
+	name := opts.Name
+	if name == "" {
+		name = "portainer-mcp"
+	}
+	env, err := newEnv(cfg.Instances, open)
 	if err != nil {
 		return nil, err
 	}
-	srv := mcp.NewServer(&mcp.Implementation{Name: "portainer-mcp", Version: Version}, nil)
+	srv := mcp.NewServer(&mcp.Implementation{Name: name, Version: Version}, nil)
 	registered := 0
 	for _, tool := range selectTools(cat, enabled, readOnly, exhaustive) {
 		h, err := handlerFor(env, cat, tool)
@@ -48,6 +65,12 @@ func New(cfg *config.Config, cat *catalog.Catalog, opts Options) (*mcp.Server, e
 			return nil, err
 		}
 		srv.AddTool(toTool(tool), adapt(h))
+		registered++
+	}
+	// container_exec is not in the catalog: Arcane describes exec only as a
+	// terminal websocket. Read-only mode never registers it.
+	if opts.AllowExec && !readOnly {
+		srv.AddTool(execTool(), adapt(env.containerExecWS()))
 		registered++
 	}
 	if registered == 0 {
@@ -151,21 +174,26 @@ func toolError(err error) *mcp.CallToolResult {
 	}
 }
 
+// openPortainer is the default instance client.
+func openPortainer(inst config.Instance) (*portainer.Client, error) {
+	return portainer.New(portainer.Options{
+		BaseURL:   inst.URL,
+		APIKey:    inst.APIKey,
+		TLSVerify: bool(inst.TLSVerify),
+		CAFile:    inst.CAFile,
+	})
+}
+
 // env resolves the instance argument to a client.
 type env struct {
 	clients map[string]*portainer.Client
 	order   []string
 }
 
-func newEnv(instances []config.Instance) (*env, error) {
+func newEnv(instances []config.Instance, open func(config.Instance) (*portainer.Client, error)) (*env, error) {
 	e := &env{clients: make(map[string]*portainer.Client, len(instances))}
 	for _, inst := range instances {
-		c, err := portainer.New(portainer.Options{
-			BaseURL:   inst.URL,
-			APIKey:    inst.APIKey,
-			TLSVerify: bool(inst.TLSVerify),
-			CAFile:    inst.CAFile,
-		})
+		c, err := open(inst)
 		if err != nil {
 			return nil, fmt.Errorf("instance %q: %w", inst.Name, err)
 		}

@@ -1,4 +1,6 @@
-// Package portainer is a small read client for the Portainer HTTP API.
+// Package portainer is a small read client for the Portainer HTTP API. The
+// Arcane client reuses its request executor: both APIs answer JSON and
+// authenticate with an API key header.
 package portainer
 
 import (
@@ -20,12 +22,19 @@ type Options struct {
 	APIKey    string
 	TLSVerify bool
 	CAFile    string
+	// AuthHeader is the header the API key travels in; X-API-KEY when empty.
+	AuthHeader string
+	// Label prefixes error text, so a message says which server refused;
+	// portainer when empty.
+	Label string
 }
 
 // Client talks to one Portainer instance.
 type Client struct {
 	base   string
 	apiKey string
+	auth   string
+	label  string
 	http   *http.Client
 }
 
@@ -48,9 +57,18 @@ func New(opts Options) (*Client, error) {
 		}
 		tlsCfg.RootCAs = pool
 	}
+	auth, label := opts.AuthHeader, opts.Label
+	if auth == "" {
+		auth = "X-API-KEY"
+	}
+	if label == "" {
+		label = "portainer"
+	}
 	return &Client{
 		base:   strings.TrimRight(opts.BaseURL, "/"),
 		apiKey: opts.APIKey,
+		auth:   auth,
+		label:  label,
 		http: &http.Client{
 			Timeout:   120 * time.Second,
 			Transport: &http.Transport{TLSClientConfig: tlsCfg},
@@ -62,19 +80,24 @@ func New(opts Options) (*Client, error) {
 type APIError struct {
 	Status  int
 	Message string
+	Label   string
 }
 
 // Error implements error with readable text for the statuses a user hits.
 func (e *APIError) Error() string {
+	label := e.Label
+	if label == "" {
+		label = "portainer"
+	}
 	switch e.Status {
 	case http.StatusUnauthorized:
-		return fmt.Sprintf("portainer: 401 unauthorized: check the api_key (server said: %s)", e.Message)
+		return fmt.Sprintf("%s: 401 unauthorized: check the api_key (server said: %s)", label, e.Message)
 	case http.StatusForbidden:
-		return fmt.Sprintf("portainer: 403 forbidden: this api key may not perform the operation (server said: %s)", e.Message)
+		return fmt.Sprintf("%s: 403 forbidden: this api key may not perform the operation (server said: %s)", label, e.Message)
 	case http.StatusNotFound:
-		return fmt.Sprintf("portainer: 404 not found: %s", e.Message)
+		return fmt.Sprintf("%s: 404 not found: %s", label, e.Message)
 	}
-	return fmt.Sprintf("portainer: %d %s: %s", e.Status, http.StatusText(e.Status), e.Message)
+	return fmt.Sprintf("%s: %d %s: %s", label, e.Status, http.StatusText(e.Status), e.Message)
 }
 
 func (c *Client) get(ctx context.Context, path string, out any) error {
@@ -82,7 +105,7 @@ func (c *Client) get(ctx context.Context, path string, out any) error {
 	if err != nil {
 		return fmt.Errorf("build request %s: %w", path, err)
 	}
-	req.Header.Set("X-API-KEY", c.apiKey)
+	req.Header.Set(c.auth, c.apiKey)
 	req.Header.Set("Accept", "application/json")
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -91,7 +114,7 @@ func (c *Client) get(ctx context.Context, path string, out any) error {
 	defer resp.Body.Close()
 	if resp.StatusCode/100 != 2 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return &APIError{Status: resp.StatusCode, Message: strings.TrimSpace(string(body))}
+		return &APIError{Status: resp.StatusCode, Message: strings.TrimSpace(string(body)), Label: c.label}
 	}
 	if out == nil {
 		return nil

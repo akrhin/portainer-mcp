@@ -62,6 +62,22 @@ func Load(path string, cat *catalog.Catalog) (*Config, error) {
 	return &cfg, nil
 }
 
+// Single builds the config of one instance from command-line flags. The Arcane
+// server takes no config file: one manager is all it talks to.
+func Single(cat *catalog.Catalog, name, rawURL, apiKey string, toolsets []string) (*Config, error) {
+	u, err := expandInto(rawURL, 0)
+	if err != nil {
+		return nil, fmt.Errorf("instance %q: url: %w", name, err)
+	}
+	inst := Instance{Name: name, URL: u}
+	inst.APIKey, inst.apiKeyEnv = ExpandEnv(apiKey)
+	cfg := &Config{Instances: []Instance{inst}, Toolsets: toolsets}
+	if err := cfg.validate(cat); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
 func (c *Config) expand() error {
 	var err error
 	if c.Server.Transport, err = expandInto(c.Server.Transport, 0); err != nil {

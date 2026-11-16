@@ -5,6 +5,29 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-11-16
+
+### Added
+
+- A second binary, `arcane-mcp`, serves [Arcane](https://getarcane.app) managers from
+  the same repository: `--url` and an `X-API-Key` from `--api-key`, a catalog of 399
+  tools in thirteen toolsets with 53 registered by default, and the same handler as
+  the Portainer server.
+- `tools/specgen` converts the Arcane OpenAPI 3.1 document to `api/arcane-3.1.yaml`
+  deterministically (`make spec-arcane`), and `tools/cataloggen -profile arcane`
+  builds `internal/catalog/arcane/generated.yaml`.
+- `make build-arcane`, a second GoReleaser build and `scripts/smoke-arcane.sh`, which
+  drives the Arcane server over stdio against a live manager.
+- `container_exec` runs one shell line inside an Arcane container and returns what it
+  printed. Arcane publishes no exec operation — the terminal is a WebSocket route — so the
+  tool is registered beside the catalog and sits behind `--allow-exec` (or
+  `ARCANE_ALLOW_EXEC=true`); `--read-only` never registers it. The command goes to the
+  container's shell unquoted, capped at 4 KiB, the answer at 64 KiB, and the session is
+  cut at `timeout_sec` (default 30, at most 300). Arcane reports no exit status, so the
+  tool types a `printf '__mcp_exit:%d__'` marker line into the same shell after the command
+  and returns `exit: N`; a command that ends the shell itself returns no status. Every call
+  is audited on standard error.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added
@@ -28,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   call used to start the first exec again and answer `exec command … has already
   run`.
 
+[0.3.0]: https://github.com/akhrin/portainer-mcp/releases/tag/v0.3.0
 [0.2.0]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.2.0
 
 ## [0.1.0] - 2026-11-16

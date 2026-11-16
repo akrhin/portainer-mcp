@@ -11,3 +11,7 @@ coverage.*
 *.key
 config.local.yaml
 .serena/
+
+# the vendor OpenAPI dump stays out of the repository
+.tmp-*.json
+/arcane-mcp

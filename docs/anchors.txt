@@ -15,3 +15,6 @@ must|87 of them|docs/index.md
 must|116 tools|docs/toolsets.md
 must|2026-07-28|docs/index.md
 must|17717|docs/index.md
+must|399 tools in thirteen toolsets|docs/arcane.md
+must|flag\.String\("api-key"|cmd/arcane-mcp/main.go
+must|X-API-Key|internal/arcane/client.go

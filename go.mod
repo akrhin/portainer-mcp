@@ -3,6 +3,7 @@ module github.com/akrhin/portainer-mcp
 go 1.27.4
 
 require (
+	github.com/coder/websocket v1.8.15
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	gopkg.in/yaml.v3 v3.0.1
 )

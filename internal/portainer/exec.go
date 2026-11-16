@@ -85,7 +85,7 @@ func (c *Client) roundTrip(ctx context.Context, method, path string, query url.V
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", method, path, err)
 	}
-	req.Header.Set("X-API-KEY", c.apiKey)
+	req.Header.Set(c.auth, c.apiKey)
 	req.Header.Set("Accept", "application/json")
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
@@ -99,7 +99,7 @@ func (c *Client) roundTrip(ctx context.Context, method, path string, query url.V
 
 	if resp.StatusCode/100 != 2 {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, &APIError{Status: resp.StatusCode, Message: strings.TrimSpace(string(msg))}
+		return nil, &APIError{Status: resp.StatusCode, Message: strings.TrimSpace(string(msg)), Label: c.label}
 	}
 
 	data, err := io.ReadAll(io.LimitReader(resp.Body, MaxResponse+1))
