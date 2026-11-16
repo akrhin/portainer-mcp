@@ -5,7 +5,7 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2026-11-16
+## [0.3.0] - unreleased
 
 ### Added
 
@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   builds `internal/catalog/arcane/generated.yaml`.
 - `make build-arcane`, a second GoReleaser build and `scripts/smoke-arcane.sh`, which
   drives the Arcane server over stdio against a live manager.
+
+## [0.2.0] - 2026-11-16
+
+### Added
+
 - Multipart operations (endpoint creation, file-based stack creation, TLS
   certificate upload and the other five) now work: the generator marks them
   `form: true`, and a `body` value shaped `{filename, content}` or
