@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 )
 
 // MaxResponse caps what one tool call hands back to the model. A larger answer
@@ -27,6 +28,9 @@ type Response struct {
 	// Truncated reports that Body is the first MaxResponse bytes of a larger
 	// answer.
 	Truncated bool
+	// TimedOut reports that a stream read stopped at its deadline; Body holds
+	// what arrived before it.
+	TimedOut bool
 }
 
 // Do performs one request against the instance. Path is the already expanded
@@ -39,6 +43,48 @@ func (c *Client) Do(ctx context.Context, method, path string, query url.Values, 
 		contentType = "application/json"
 	}
 	return c.roundTrip(ctx, method, path, query, contentType, reader)
+}
+
+// DoRaw performs one request whose body is not JSON: the document names the
+// media type, and the bytes travel unchanged.
+func (c *Client) DoRaw(ctx context.Context, method, path string, query url.Values, contentType string, body []byte) (*Response, error) {
+	var reader io.Reader
+	if body != nil {
+		reader = bytes.NewReader(body)
+	}
+	return c.roundTrip(ctx, method, path, query, contentType, reader)
+}
+
+// DoStream performs one request whose answer never ends on its own — an SSE
+// feed or a long poll — and reads until the deadline. What arrived is the
+// answer, so the call returns instead of waiting on the server.
+func (c *Client) DoStream(ctx context.Context, method, path string, query url.Values, timeout time.Duration) (*Response, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	resp, err := c.send(ctx, method, path, query, "*/*", "", nil)
+	if err != nil {
+		if ctx.Err() != nil {
+			// Nothing arrived before the deadline: an empty answer is the result.
+			return &Response{TimedOut: true}, nil
+		}
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	out := &Response{Status: resp.StatusCode, ContentType: resp.Header.Get("Content-Type")}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, MaxResponse+1))
+	if err != nil {
+		if ctx.Err() == nil {
+			return nil, fmt.Errorf("%s %s: read body: %w", method, path, err)
+		}
+		out.TimedOut = true
+	}
+	if len(data) > MaxResponse {
+		data = data[:MaxResponse]
+		out.Truncated = true
+	}
+	out.Body = data
+	return out, nil
 }
 
 // FilePart is one file of a multipart form body.
@@ -77,30 +123,11 @@ func (c *Client) DoForm(ctx context.Context, method, path string, query url.Valu
 // roundTrip is the one place that sends and reads a request: auth header,
 // status mapping and the MaxResponse cut are the same for every body kind.
 func (c *Client) roundTrip(ctx context.Context, method, path string, query url.Values, contentType string, body io.Reader) (*Response, error) {
-	target := c.base + path
-	if len(query) > 0 {
-		target += "?" + query.Encode()
-	}
-	req, err := http.NewRequestWithContext(ctx, method, target, body)
+	resp, err := c.send(ctx, method, path, query, "application/json", contentType, body)
 	if err != nil {
-		return nil, fmt.Errorf("%s %s: %w", method, path, err)
-	}
-	req.Header.Set(c.auth, c.apiKey)
-	req.Header.Set("Accept", "application/json")
-	if contentType != "" {
-		req.Header.Set("Content-Type", contentType)
-	}
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%s %s: %w", method, path, err)
+		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode/100 != 2 {
-		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, &APIError{Status: resp.StatusCode, Message: strings.TrimSpace(string(msg)), Label: c.label}
-	}
 
 	data, err := io.ReadAll(io.LimitReader(resp.Body, MaxResponse+1))
 	if err != nil {
@@ -114,6 +141,35 @@ func (c *Client) roundTrip(ctx context.Context, method, path string, query url.V
 	}
 	out.Body = data
 	return out, nil
+}
+
+// send performs the request and maps a refusal to an APIError; the caller owns
+// the body.
+func (c *Client) send(ctx context.Context, method, path string, query url.Values, accept, contentType string, body io.Reader) (*http.Response, error) {
+	target := c.base + path
+	if len(query) > 0 {
+		target += "?" + query.Encode()
+	}
+	req, err := http.NewRequestWithContext(ctx, method, target, body)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", method, path, err)
+	}
+	req.Header.Set(c.auth, c.apiKey)
+	req.Header.Set("Accept", accept)
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", method, path, err)
+	}
+	if resp.StatusCode/100 != 2 {
+		defer resp.Body.Close()
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, &APIError{Status: resp.StatusCode, Message: strings.TrimSpace(string(msg)), Label: c.label}
+	}
+	return resp, nil
 }
 
 // JSON reports whether the body holds a complete JSON document.

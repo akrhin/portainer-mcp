@@ -19,7 +19,7 @@ no longer stops startup.
 | [README](../README.md) | Install, first run, flags, client setup |
 | [Configuration](configuration.md) | Every YAML key, default, `${VAR}` rule, flag precedence and startup error |
 | [Toolsets](toolsets.md) | The eleven toolsets, dependencies, status, and the tools inside each |
-| [Arcane backend](arcane.md) | The second binary: its thirteen toolsets, flags, limits and the regeneration steps |
+| [Arcane backend](arcane.md) | The second binary: its seventeen toolsets, flags, limits and the regeneration steps |
 | [Architecture](architecture.md) | Packages, startup order, request flow, Portainer client, transports |
 | [Development](development.md) | Tests, golden files, smoke run, docs gate, CI, release |
 

@@ -655,103 +655,6 @@ toolsets:
             method: GET
             path: /api/agents
           default: true
-        - name: event_delete
-          description: Delete an event Delete a system event by ID
-          annotations:
-            readOnlyHint: false
-            destructiveHint: true
-            openWorldHint: false
-          input:
-            additionalProperties: false
-            properties:
-                eventId:
-                    description: Event ID
-                    type: string
-                instance:
-                    description: Name of a configured Arcane server; defaults to the first one.
-                    type: string
-            required:
-                - eventId
-            type: object
-          output:
-            additionalProperties: true
-            type: object
-          operation:
-            method: DELETE
-            path: /api/events/{eventId}
-        - name: event_stats
-          description: Event severity counts Get global event counts grouped by severity
-          annotations:
-            readOnlyHint: true
-            idempotentHint: true
-            openWorldHint: false
-          input:
-            additionalProperties: false
-            properties:
-                instance:
-                    description: Name of a configured Arcane server; defaults to the first one.
-                    type: string
-            type: object
-          output:
-            additionalProperties: true
-            type: object
-          operation:
-            method: GET
-            path: /api/events/stats
-          default: true
-        - name: events_environment_inspect
-          description: Get events by environment Get a paginated list of events for a specific environment
-          annotations:
-            readOnlyHint: true
-            idempotentHint: true
-            openWorldHint: false
-          input:
-            additionalProperties: false
-            properties:
-                environmentId:
-                    description: Environment ID
-                    type: string
-                includeTotal:
-                    description: Return exact totalItems and totalPages; otherwise they are -1 and hasNextPage reports whether more rows exist
-                    type: boolean
-                instance:
-                    description: Name of a configured Arcane server; defaults to the first one.
-                    type: string
-                limit:
-                    default: 20
-                    description: Limit
-                    format: int64
-                    type: integer
-                order:
-                    default: asc
-                    description: Sort direction
-                    type: string
-                search:
-                    description: Search query
-                    type: string
-                severity:
-                    description: Filter by severity
-                    type: string
-                sort:
-                    description: Column to sort by
-                    type: string
-                start:
-                    default: 0
-                    description: Start index
-                    format: int64
-                    type: integer
-                type:
-                    description: Filter by event type (exact type or category prefix, comma-separated)
-                    type: string
-            required:
-                - environmentId
-            type: object
-          output:
-            additionalProperties: true
-            type: object
-          operation:
-            method: GET
-            path: /api/events/agent/{environmentId}
         - name: health_check
           description: Health check Check if the API is healthy
           annotations:
@@ -772,6 +675,22 @@ toolsets:
             method: GET
             path: /api/health
           default: true
+        - name: health_check_head
+          description: Health check (HEAD) Check if the API is healthy (HEAD request)
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          operation:
+            method: HEAD
+            path: /api/health
         - name: health_ready
           description: Readiness probe Report whether the database and Docker daemon are reachable
           annotations:
@@ -791,55 +710,6 @@ toolsets:
           operation:
             method: GET
             path: /api/health/ready
-        - name: list_events
-          description: List events Get a paginated list of system events
-          annotations:
-            readOnlyHint: true
-            idempotentHint: true
-            openWorldHint: false
-          input:
-            additionalProperties: false
-            properties:
-                includeTotal:
-                    description: Return exact totalItems and totalPages; otherwise they are -1 and hasNextPage reports whether more rows exist
-                    type: boolean
-                instance:
-                    description: Name of a configured Arcane server; defaults to the first one.
-                    type: string
-                limit:
-                    default: 20
-                    description: Limit
-                    format: int64
-                    type: integer
-                order:
-                    default: asc
-                    description: Sort direction
-                    type: string
-                search:
-                    description: Search query
-                    type: string
-                severity:
-                    description: Filter by severity
-                    type: string
-                sort:
-                    description: Column to sort by
-                    type: string
-                start:
-                    default: 0
-                    description: Start index
-                    format: int64
-                    type: integer
-                type:
-                    description: Filter by event type (exact type or category prefix, comma-separated)
-                    type: string
-            type: object
-          output:
-            additionalProperties: true
-            type: object
-          operation:
-            method: GET
-            path: /api/events
-          default: true
         - name: pair_environment
           description: Pair agent with manager Agent sends API key to complete environment pairing
           annotations:
@@ -882,6 +752,34 @@ toolsets:
             method: GET
             path: /api/version
           default: true
+        - name: stream_upgrade_progress
+          description: Stream upgrade progress Stream this instance's self-upgrade progress, replaying the latest upgrade log once it has restarted
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                id:
+                    description: Environment ID
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+                timeout_sec:
+                    default: 10
+                    description: Seconds to read before returning what arrived.
+                    maximum: 60
+                    minimum: 1
+                    type: integer
+            required:
+                - id
+            type: object
+          operation:
+            method: GET
+            path: /api/agents/{id}/system/upgrade/progress
+          stream: true
         - name: sync_environment
           description: Sync environment Sync container registries, S3 destinations, and git repositories to a remote environment. Returns an error if any resource group fails; other groups may still sync successfully.
           annotations:
@@ -938,6 +836,27 @@ toolsets:
           operation:
             method: POST
             path: /api/agents/{id}/system/containers
+        - name: system_health_head
+          description: Check system health Check if the Docker daemon is responsive
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                id:
+                    description: Environment ID
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - id
+            type: object
+          operation:
+            method: HEAD
+            path: /api/agents/{id}/system/health
         - name: system_prune
           description: Prune Docker resources Remove unused Docker resources (containers, images, volumes, networks)
           annotations:
@@ -11982,6 +11901,1247 @@ toolsets:
           operation:
             method: GET
             path: /api/agents/{id}/updater/status
+    - name: uploads
+      tools:
+        - name: upload_chunk
+          description: Upload a chunk Upload one chunk of an upload session; re-sending a chunk is idempotent The body is sent as application/octet-stream.
+          annotations:
+            readOnlyHint: false
+            destructiveHint: false
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: 'Raw request body, sent as application/octet-stream: {"content": "text"} or {"base64": "..."} for binary.'
+                    type: object
+                id:
+                    type: string
+                index:
+                    format: int64
+                    type: integer
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+                kind:
+                    enum:
+                        - image
+                        - volume-backup
+                        - build-workspace
+                    type: string
+                uploadId:
+                    type: string
+            required:
+                - body
+                - id
+                - index
+                - kind
+                - uploadId
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: PUT
+            path: /api/agents/{id}/uploads/{kind}/{uploadId}/chunks/{index}
+            body: body
+            binary: true
+        - name: upload_session_create
+          description: Create an upload session Start a chunked upload session; the file arrives as independently retryable chunks
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                id:
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+                kind:
+                    enum:
+                        - image
+                        - volume-backup
+                        - build-workspace
+                    type: string
+            required:
+                - body
+                - id
+                - kind
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/agents/{id}/uploads/{kind}
+            body: body
+        - name: upload_session_delete
+          description: Delete an upload session Abort an upload session and discard its received chunks
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                id:
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+                kind:
+                    enum:
+                        - image
+                        - volume-backup
+                        - build-workspace
+                    type: string
+                uploadId:
+                    type: string
+            required:
+                - id
+                - kind
+                - uploadId
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: DELETE
+            path: /api/agents/{id}/uploads/{kind}/{uploadId}
+        - name: upload_session_inspect
+          description: Get an upload session Inspect an upload session to resume by re-sending only the missing chunks
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                id:
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+                kind:
+                    enum:
+                        - image
+                        - volume-backup
+                        - build-workspace
+                    type: string
+                uploadId:
+                    type: string
+            required:
+                - id
+                - kind
+                - uploadId
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/agents/{id}/uploads/{kind}/{uploadId}
+    - name: push
+      tools:
+        - name: apns_device_action
+          description: Send a test push
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                action:
+                    description: Device action
+                    enum:
+                        - test
+                    type: string
+                id:
+                    description: Device ID
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - action
+                - id
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/apns/devices/{id}
+        - name: apns_device_delete
+          description: Remove a mobile device
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                id:
+                    description: Device ID
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - id
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: DELETE
+            path: /api/apns/devices/{id}
+        - name: apns_device_update
+          description: Update a mobile device
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                id:
+                    description: Device ID
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+                - id
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: PATCH
+            path: /api/apns/devices/{id}
+            body: body
+        - name: apns_pairing_token_create
+          description: Issue a pairing token Issue a short-lived signed token the mobile app presents to the push relay
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/apns/pairing
+        - name: apns_status
+          description: Get mobile push status Whether mobile push is enabled and the caller's registered devices
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/apns/status
+        - name: register_apns_device
+          description: Register a mobile device
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/apns/devices
+            body: body
+    - name: events
+      tools:
+        - name: event_delete
+          description: Delete an event Delete a system event by ID
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                eventId:
+                    description: Event ID
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - eventId
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: DELETE
+            path: /api/events/{eventId}
+        - name: event_stats
+          description: Event severity counts Get global event counts grouped by severity
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/events/stats
+          default: true
+        - name: events_environment_inspect
+          description: Get events by environment Get a paginated list of events for a specific environment
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                environmentId:
+                    description: Environment ID
+                    type: string
+                includeTotal:
+                    description: Return exact totalItems and totalPages; otherwise they are -1 and hasNextPage reports whether more rows exist
+                    type: boolean
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+                limit:
+                    default: 20
+                    description: Limit
+                    format: int64
+                    type: integer
+                order:
+                    default: asc
+                    description: Sort direction
+                    type: string
+                search:
+                    description: Search query
+                    type: string
+                severity:
+                    description: Filter by severity
+                    type: string
+                sort:
+                    description: Column to sort by
+                    type: string
+                start:
+                    default: 0
+                    description: Start index
+                    format: int64
+                    type: integer
+                type:
+                    description: Filter by event type (exact type or category prefix, comma-separated)
+                    type: string
+            required:
+                - environmentId
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/events/agent/{environmentId}
+        - name: list_events
+          description: List events Get a paginated list of system events
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                includeTotal:
+                    description: Return exact totalItems and totalPages; otherwise they are -1 and hasNextPage reports whether more rows exist
+                    type: boolean
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+                limit:
+                    default: 20
+                    description: Limit
+                    format: int64
+                    type: integer
+                order:
+                    default: asc
+                    description: Sort direction
+                    type: string
+                search:
+                    description: Search query
+                    type: string
+                severity:
+                    description: Filter by severity
+                    type: string
+                sort:
+                    description: Column to sort by
+                    type: string
+                start:
+                    default: 0
+                    description: Start index
+                    format: int64
+                    type: integer
+                type:
+                    description: Filter by event type (exact type or category prefix, comma-separated)
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/events
+          default: true
+        - name: stream_client
+          description: Multiplexed client stream Streams the requested channels (environments, activities, events, version, arcane-upgrade) as JSON envelopes over a single Server-Sent Events connection
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                channels:
+                    description: 'Comma-separated channels to subscribe to: environments, activities, events, version, arcane-upgrade'
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+                limit:
+                    default: 0
+                    description: Maximum activities to include in each activities-channel snapshot
+                    format: int64
+                    type: integer
+                timeout_sec:
+                    default: 10
+                    description: Seconds to read before returning what arrived.
+                    maximum: 60
+                    minimum: 1
+                    type: integer
+            type: object
+          operation:
+            method: GET
+            path: /api/stream
+          stream: true
+        - name: wait_for_environment_changes
+          description: Wait for environment changes Long-poll the latest revision of each changed resource kind in an environment
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                epoch:
+                    description: Epoch from the previous response; a different epoch returns immediately
+                    type: string
+                id:
+                    description: Environment ID
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+                since:
+                    description: Highest kind revision already seen; waits until a newer revision exists
+                    format: int64
+                    minimum: 0
+                    type: integer
+                timeout_sec:
+                    default: 10
+                    description: Seconds to read before returning what arrived.
+                    maximum: 60
+                    minimum: 1
+                    type: integer
+                wait:
+                    description: Maximum seconds to wait for a newer revision; capped at the server limit
+                    format: int64
+                    minimum: 0
+                    type: integer
+            required:
+                - id
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/agents/{id}/events/changes
+          stream: true
+    - name: auth
+      tools:
+        - name: begin_passkey_login
+          description: Begin passkey login Begin a discoverable WebAuthn passkey login ceremony
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/passkey/login/begin
+        - name: begin_passkey_mfa
+          description: Begin passkey MFA Begin a WebAuthn assertion for a pending MFA transaction
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/mfa/passkey/begin
+            body: body
+        - name: begin_passkey_registration
+          description: Begin passkey registration
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/me/passkeys/register/begin
+        - name: begin_passkey_step_up
+          description: Begin passkey step-up
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/me/passkeys/reauth/begin
+        - name: disable_passkey_mfa
+          description: Disable passkey MFA
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/me/mfa/disable
+        - name: enable_passkey_mfa
+          description: Enable passkey MFA
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/me/mfa/enable
+        - name: exchange_mobile_passkey_login
+          description: Exchange mobile passkey login Consume a verifier-bound mobile passkey transaction and create a session
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/passkey/mobile/exchange
+            body: body
+        - name: exchange_oidc_device_token
+          description: Exchange device code for tokens Exchange a device code for authentication tokens
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/oidc/device/token
+            body: body
+        - name: finish_mobile_passkey_login
+          description: Finish mobile passkey login Validate a browser assertion and create a one-time mobile exchange
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/passkey/mobile/finish
+            body: body
+        - name: finish_passkey_login
+          description: Finish passkey login Validate a discoverable WebAuthn assertion and create a session
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/passkey/login/finish
+            body: body
+        - name: finish_passkey_mfa
+          description: Finish passkey MFA Validate a WebAuthn MFA assertion and create the authenticated session
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/mfa/passkey/finish
+            body: body
+        - name: finish_passkey_registration
+          description: Finish passkey registration
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/me/passkeys/register/finish
+            body: body
+        - name: finish_passkey_step_up
+          description: Finish passkey step-up
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/me/passkeys/reauth/finish
+            body: body
+        - name: handle_oidc_callback
+          description: Handle OIDC callback Process the OIDC callback and complete authentication
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/oidc/callback
+            body: body
+        - name: initiate_oidc_device_auth
+          description: Initiate OIDC device authorization Start the device authorization flow for CLI authentication
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/oidc/device/code
+        - name: my_passkey_delete
+          description: Delete my passkey
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                id:
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - id
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: DELETE
+            path: /api/auth/me/passkeys/{id}
+        - name: my_passkeys_list
+          description: List my passkeys
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/auth/me/passkeys
+        - name: oidc_auth_url_list
+          description: Get OIDC auth URL Generate an OIDC authorization URL for login
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/oidc/url
+            body: body
+        - name: oidc_config_list
+          description: Get OIDC config Get the OIDC client configuration
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/oidc/config
+        - name: oidc_role_mapping_create
+          description: Create an OIDC role mapping
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/oidc/mappings
+            body: body
+        - name: oidc_role_mapping_delete
+          description: Delete an OIDC role mapping
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                id:
+                    description: Mapping ID
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - id
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: DELETE
+            path: /api/oidc/mappings/{id}
+        - name: oidc_role_mapping_update
+          description: Update an OIDC role mapping
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                id:
+                    description: Mapping ID
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+                - id
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: PATCH
+            path: /api/oidc/mappings/{id}
+            body: body
+        - name: oidc_role_mappings_list
+          description: List OIDC group → role mappings Returns every mapping. On each OIDC login the user's group claim is matched against ClaimValue and matching rows become source='oidc' role assignments.
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/oidc/mappings
+        - name: oidc_status
+          description: Get OIDC status Get the current OIDC configuration status
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/oidc/status
+        - name: passkey_capabilities_list
+          description: Get passkey capabilities
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/auth/me/passkeys/capabilities
+        - name: passkey_login_availability_list
+          description: Get passkey login availability
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/auth/passkey/login/availability
+        - name: passkey_mfa_status
+          description: Get passkey MFA status
+          annotations:
+            readOnlyHint: true
+            idempotentHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: GET
+            path: /api/auth/me/mfa
+        - name: password_step_up
+          description: Reauthenticate with password
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/me/passkeys/reauth/password
+            body: body
+        - name: regenerate_passkey_recovery_codes
+          description: Regenerate MFA recovery codes
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                action:
+                    description: Recovery code action
+                    enum:
+                        - regenerate
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - action
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/me/mfa/recovery
+        - name: rename_my_passkey
+          description: Rename my passkey
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                id:
+                    type: string
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+                - id
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: PATCH
+            path: /api/auth/me/passkeys/{id}
+            body: body
+        - name: use_passkey_recovery_code
+          description: Use an MFA recovery code Consume one recovery code for a pending MFA transaction
+          annotations:
+            readOnlyHint: false
+            destructiveHint: true
+            openWorldHint: false
+          input:
+            additionalProperties: false
+            properties:
+                body:
+                    additionalProperties: true
+                    description: JSON request body, passed to the API unchanged.
+                    type: object
+                instance:
+                    description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+            required:
+                - body
+            type: object
+          output:
+            additionalProperties: true
+            type: object
+          operation:
+            method: POST
+            path: /api/auth/mfa/recovery
+            body: body
     - name: raw
       tools:
         - name: arcane_raw
