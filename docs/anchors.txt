@@ -8,6 +8,10 @@ must|^go 1\.27|go.mod
 must|flag\.String\("toolsets"|cmd/portainer-mcp/main.go
 must|flag\.Bool\("read-only"|cmd/portainer-mcp/main.go
 must|flag\.Bool\("exhaustive"|cmd/portainer-mcp/main.go
+must|flag\.Bool\("version"|cmd/portainer-mcp/main.go
 must|Eleven toolsets|docs/index.md
+must|394 tools|docs/index.md
+must|87 of them|docs/index.md
+must|117 tools|docs/toolsets.md
 must|2026-07-28|docs/index.md
 must|17717|docs/index.md

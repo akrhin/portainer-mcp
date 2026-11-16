@@ -42,7 +42,7 @@ toolsets: [core]
 | `transport` | string | `stdio` | `stdio` или `http`. Пустое значение означает `stdio` |
 | `listen` | string | — | Адрес для прослушивания, например `127.0.0.1:17717`. Обязателен при `transport: http`, при stdio игнорируется |
 | `read_only` | bool | `false` | Регистрировать только тулы с `readOnlyHint: true` |
-| `exhaustive` | bool | `false` | По тулу на каждую операцию API. Любое `true` останавливает старт с `exhaustive catalog requires generated client (stage 1)` |
+| `exhaustive` | bool | `false` | Регистрировать все операции включённых наборов вместо набора по умолчанию |
 
 HTTP-транспорт открыт обычным HTTP и обслуживает Streamable HTTP по пути `/mcp`.
 Ставьте TLS перед ним, если эндпоинт доступен извне хоста.
@@ -75,8 +75,7 @@ HTTP-транспорт открыт обычным HTTP и обслуживае
 
 Список проверяется дважды: каждое имя должно быть в каталоге, и каждая зависимость
 включённого набора должна быть включена рядом. `helm` без `k8s`, например,
-отвергается на старте. Выбор набора, который объявлен, но ещё без обработчиков, —
-тоже ошибка старта: сообщение называет набор и говорит, какие реализованы.
+отвергается на старте.
 
 `toolsets` валидируется даже когда `--toolsets` заменяет его из командной строки.
 Держите в файле корректный список.
@@ -121,7 +120,11 @@ instances:
 | `--config` | `config.yaml` | Путь к YAML-файлу |
 | `--toolsets` | — | Имена через запятую, пробелы вокруг элементов обрезаются. Заменяет `toolsets` из файла; неизвестное имя падает до чтения файла |
 | `--read-only` | `false` | Складывается с `server.read_only`: read-only включается любым из них |
-| `--exhaustive` | `false` | Складывается с `server.exhaustive`: любой из них останавливает старт до этапа 1 |
+| `--exhaustive` | `false` | Складывается с `server.exhaustive`: любой из них регистрирует все операции включённых наборов вместо набора по умолчанию |
+| `--version` | — | Напечатать `portainer-mcp <version> (<commit>, <date>)` и выйти до чтения каталога и конфигурации |
+
+`--version` заполняется при сборке через `-X main.version`, `-X main.commit` и
+`-X main.date`; локальная сборка без тега печатает `dev (none, unknown)`.
 
 ## Ошибки старта
 
@@ -142,8 +145,6 @@ instances:
 | `instance "...": api_key is required` | `api_key` пуст |
 | `config: server.listen is required for http transport` | `transport: http` без `listen` |
 | `config: server.transport must be stdio or http, got "..."` | Другое имя транспорта |
-| `toolset "..." not implemented yet (stage 0 implements: core)` | Объявленный набор без обработчиков |
-| `exhaustive catalog requires generated client (stage 1)` | `--exhaustive` или `server.exhaustive: true` |
 | `no tools selected for toolsets ...` | Read-only-фильтр убрал все тулы выборки |
 
 ## Примеры
@@ -163,8 +164,9 @@ instances:
 toolsets: [core]
 ```
 
-Здесь `read_only: true` убирает все тулы без аннотации read-only; с текущим
-каталогом это значит, что все семь тулов `core` остаются зарегистрированными.
+Здесь `read_only: true` убирает все тулы без аннотации read-only. При
+`toolsets: [core]` и наборе по умолчанию все семь зарегистрированных тулов `core`
+помечены read-only, так что остаются все семь.
 
 ### Несколько инстансов
 

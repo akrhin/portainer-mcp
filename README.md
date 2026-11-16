@@ -19,7 +19,7 @@ the two specifications, into `internal/catalog/generated.yaml`, which is embedde
 the binary. `internal/catalog/catalog.yaml` keeps only toolset descriptions and
 dependencies. A tool that is not in the generated catalog cannot be called.
 
-**Status: the catalog is executable.** All 394 tools are registered from data and run
+**Status: the catalog is executable.** All 394 tools are defined as data and run
 through one handler. Without flags, startup registers the 87-tool default set of the
 enabled toolsets; `--exhaustive` registers every operation of those toolsets, and
 `--read-only` filters either set down to tools annotated read-only.

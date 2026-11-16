@@ -40,7 +40,7 @@ a typo such as `toolset:` fails instead of being silently ignored.
 | `transport` | string | `stdio` | `stdio` or `http`. An empty value means `stdio` |
 | `listen` | string | — | Address to bind, for example `127.0.0.1:17717`. Required when `transport` is `http`, ignored with stdio |
 | `read_only` | bool | `false` | Register only tools annotated `readOnlyHint: true` |
-| `exhaustive` | bool | `false` | One tool per API operation. Any `true` stops startup with `exhaustive catalog requires generated client (stage 1)` |
+| `exhaustive` | bool | `false` | Register every operation of the enabled toolsets instead of the default set |
 
 The HTTP transport is plain HTTP and serves Streamable HTTP at `/mcp`. Terminate TLS
 in front of it when the endpoint is reachable from outside the host.
@@ -73,9 +73,7 @@ one contains is in [toolsets.md](toolsets.md).
 
 The list is checked twice: every name must exist in the catalog, and every
 dependency of an enabled toolset must be enabled next to it. `helm` without `k8s`,
-for example, is refused at startup. Selecting a toolset that is declared but has no
-handlers yet is also a startup error — the message names the toolset and says which
-ones are implemented.
+for example, is refused at startup.
 
 `toolsets` is validated even when `--toolsets` replaces it on the command line. Keep
 a valid list in the file.
@@ -120,7 +118,11 @@ Rules, from the implementation:
 | `--config` | `config.yaml` | Path to the YAML file |
 | `--toolsets` | — | Comma-separated names, whitespace around items is trimmed. Replaces `toolsets` from the file; an unknown name fails before the file is read |
 | `--read-only` | `false` | Combined with `server.read_only`: either one enables read-only registration |
-| `--exhaustive` | `false` | Combined with `server.exhaustive`: either one stops startup until stage 1 |
+| `--exhaustive` | `false` | Combined with `server.exhaustive`: either one registers every operation of the enabled toolsets instead of the default set |
+| `--version` | — | Print `portainer-mcp <version> (<commit>, <date>)` and exit before the catalog or config is read |
+
+`--version` is filled at build time through `-X main.version`, `-X main.commit` and
+`-X main.date`; an untagged local build prints `dev (none, unknown)`.
 
 ## Startup errors
 
@@ -141,8 +143,6 @@ them:
 | `instance "...": api_key is required` | `api_key` is empty |
 | `config: server.listen is required for http transport` | `transport: http` without `listen` |
 | `config: server.transport must be stdio or http, got "..."` | Another transport name |
-| `toolset "..." not implemented yet (stage 0 implements: core)` | A declared toolset with no handlers |
-| `exhaustive catalog requires generated client (stage 1)` | `--exhaustive` or `server.exhaustive: true` |
 | `no tools selected for toolsets ...` | Read-only filtering removed every tool of the selection |
 
 ## Examples
@@ -162,8 +162,9 @@ instances:
 toolsets: [core]
 ```
 
-`read_only: true` here removes every tool that is not annotated read-only, which with
-the current catalog means all seven `core` tools stay registered.
+`read_only: true` here removes every tool that is not annotated read-only. With
+`toolsets: [core]` and the default set, all seven registered `core` tools are
+read-only, so all seven stay.
 
 ### Several instances
 

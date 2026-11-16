@@ -4,175 +4,221 @@
 
 # Наборы тулов
 
-Каталог объявляет 113 операций в одиннадцати наборах. У каждой операции есть имя,
-описание, аннотации и необязательные схемы входа и выхода, и больше нигде в коде
-они не повторяются. Эта страница — представление
-`internal/catalog/catalog.yaml`; если они расходятся, сервер регистрирует то, что
-лежит в каталоге.
+Каталог несёт 394 тула в одиннадцати наборах. Каждый тул — данные: имя, описание,
+аннотации MCP, схема входа, необязательная схема выхода и HTTP-операция за ним.
+Ни один обработчик этого не повторяет. Сам список лежит в
+`internal/catalog/generated.yaml`; эта страница — его представление, и при
+расхождении сервер регистрирует то, что сказано в сгенерированном файле.
 
-## Статус
+## Откуда берутся тулы
 
-Обработчики есть только у `core`. Остальные десять наборов объявлены со всеми
-операциями и аннотациями, но выбор такого набора останавливает сервер:
+| Файл | Роль |
+|---|---|
+| `api/portainer-2.45.yaml`, `api/docker-engine-1.57.yaml` | OpenAPI-документы, из которых выводится каждый тул |
+| `api/toolsets.yaml` | Карта «тег → набор», переопределения по операциям, пропущенные пути, стриминговые пометки, пути `managedFields`, переименования и три сырых extra-тула |
+| `api/default-tools.yaml` | 87 тулов, которые регистрируются без `--exhaustive` |
+| `tools/cataloggen` (`make catalog`) | Читает четыре файла выше и пишет `internal/catalog/generated.yaml` |
+| `internal/catalog/catalog.yaml` | Имена наборов, описания и рёбра `depends_on`; списков тулов нет |
+| `internal/catalog/generated.yaml` | Каждый тул каждого набора; вшивается в бинарь |
 
-```text
-toolset "docker" not implemented yet (stage 0 implements: core)
-```
-
-Это осознанно: тул, который не может ответить, хуже отсутствующего, потому что
-модель его вызовет. Запись в каталоге заодно служит спецификацией для этапа, который
-её реализует.
+Оба документа вшиваются через `//go:embed` и сливаются при старте
+(`internal/catalog/catalog.go`): курируемый документ даёт описания наборов и
+зависимости, сгенерированный — тулы. Слияние отвергает набор, который есть только в
+одном из них, и отвергает список тулов в `catalog.yaml`.
 
 ## Сводка
 
-| Набор | Зависит от | Операций | Read-only | Write | Статус |
-|---|---|---|---|---|---|
-| `core` | — | 7 | 7 | 0 | Реализован |
-| `docker` | `core` | 24 | 11 | 13 | Объявлен на этап 1 |
-| `swarm` | `docker` | 7 | 4 | 3 | Объявлен на этап 1 |
-| `k8s` | `core` | 17 | 11 | 6 | Объявлен на этап 3 |
-| `helm` | `k8s` | 8 | 4 | 4 | Объявлен на этап 3 |
-| `stacks` | `docker` | 13 | 5 | 8 | Объявлен на этап 2 |
-| `gitops` | `stacks` | 6 | 4 | 2 | Объявлен на этап 2 |
-| `edge` | `core` | 8 | 8 | 0 | Объявлен на этап 4 |
-| `admin` | `core` | 16 | 11 | 5 | Объявлен на этап 4 |
-| `observability` | `core` | 4 | 4 | 0 | Объявлен на этап 4 |
-| `raw` | — | 3 | 0 | 3 | Объявлен на этап 4 |
+| Набор | Зависит от | Тулов | По умолчанию |
+|---|---|---|---|
+| `core` | — | 29 | 7 |
+| `docker` | `core` | 79 | 13 |
+| `swarm` | `docker` | 30 | 6 |
+| `k8s` | `core` | 105 | 14 |
+| `helm` | `k8s` | 11 | 6 |
+| `stacks` | `docker` | 36 | 9 |
+| `gitops` | `stacks` | 14 | 5 |
+| `edge` | `core` | 28 | 8 |
+| `admin` | `core` | 55 | 12 |
+| `observability` | `core` | 4 | 4 |
+| `raw` | — | 3 | 3 |
 
 Граф зависимостей: `helm → k8s → core` и `gitops → stacks → docker → core`;
 `edge`, `admin` и `observability` висят на `core`. Набор не включить без его
 зависимостей, а `raw` не подтягивается ничем.
 
-## `core` — реализован
+`--exhaustive` — это разница между двумя правыми столбцами: без него сервер
+регистрирует только тулы с `default: true`, то есть курируемый набор из
+`api/default-tools.yaml`. С ним регистрируется каждый тул включённых наборов.
+`--read-only` фильтрует любую выборку до тулов с `readOnlyHint: true` на этапе
+регистрации, поэтому клиент не видит тул, который ему нельзя вызывать.
 
-Идентичность сервера и инвентаризация, всё read-only, всё поверх собственного API
-Portainer:
+## Как исполняется тул
 
-| Тул | Что делает |
-|---|---|
-| `system_version` | `GET /api/system/version` — версия, версия API, редакция |
-| `system_status` | `GET /api/system/status` — живость сервера Portainer |
-| `system_info` | `GET /api/system/info` — счётчики хоста и платформы |
-| `settings_get` | `GET /api/settings` — настройки сервера |
-| `whoami` | `GET /api/users/me` — пользователь за API-ключом |
-| `environment_list` | `GET /api/endpoints`, сведённый к id, имени, типу, статусу и URL |
-| `environment_inspect` | `GET /api/endpoints/{id}` с историей снимков; принимает целочисленный `id` |
+Все тулы обслуживает один обработчик. `internal/mcpserver/tools.go` собирает запрос
+из записи каталога и аргументов: параметры пути экранируются и подставляются,
+остальные свойства входа становятся параметрами запроса (массивы — повторёнными
+ключами или одним значением через запятую, где так сказано в каталоге), а свойство
+тела уходит JSON-ом. `internal/portainer/exec.go` выполняет вызов с `X-API-KEY`.
+JSON-ответ приходит и текстом, и в `structuredContent`; у 237 тулов объявлена ещё и
+схема выхода, которую клиент получает как `outputSchema`.
 
-`environment_list` переводит числовой тип окружения Portainer в `docker`, `agent`,
-`azure`, `edge-agent`, `kubernetes-local`, `kubernetes`, `edge-kubernetes` или
-`unknown(<n>)`, а статус — в `up`, `down` или `unknown(<n>)`. Остальные тулы `core`
-возвращают ответ Portainer как он пришёл.
+## `core` — 29 тулов, 7 по умолчанию
 
-## `docker`
+Идентичность и настройки сервера (`system_version`, `system_status`, `system_info`,
+`whoami`, `motd`, `settings_get`, `settings_public` и записи `settings_update`,
+`system_upgrade`), окружения (`environment_list`, `environment_inspect`,
+создание, обновление и удаление `endpoint_*`, ассоциации, снимки, сводка) и реестры
+эндпоинтов.
 
-Контейнеры: `docker_container_list`, `docker_container_inspect`,
-`docker_container_create`, `docker_container_start`, `docker_container_stop`,
-`docker_container_restart`, `docker_container_remove`, `docker_container_logs`,
-`docker_container_stats`, `docker_container_top`, `docker_container_exec`.
+Набор по умолчанию — семь тулов идентичности и инвентаризации: `system_version`,
+`system_status`, `system_info`, `settings_get`, `whoami`, `environment_list`,
+`environment_inspect`.
 
-Образы: `docker_image_list`, `docker_image_pull`, `docker_image_remove`.
+## `docker` — 79 тулов, 13 по умолчанию
 
-Сети: `docker_network_list`, `docker_network_create`, `docker_network_connect`,
-`docker_network_remove`.
+Контейнеры (`container_list`, `container_inspect`, `container_logs`, создание,
+запуск, остановка, перезапуск, удаление, exec, stats, top, архивы, prune и
+остальное), образы, сети, тома, плагины, distribution и системные вызовы демона.
+Операции Docker идут через прокси Portainer; `environment` — обязательный аргумент,
+переименованный из `environmentId` спецификации через `param_renames` в
+`api/toolsets.yaml`.
 
-Тома: `docker_volume_list`, `docker_volume_create`, `docker_volume_remove`.
+Набор по умолчанию покрывает обычные чтения контейнеров и образов плюс записи
+жизненного цикла: `container_list`, `container_inspect`, `container_logs`,
+`container_create`, `container_start`, `container_stop`, `container_restart`,
+`container_delete`, `container_exec`, `image_list`, `image_inspect`, `image_delete`,
+`network_list`.
 
-Демон: `docker_system_df`, `docker_system_info`, `docker_system_events`.
+## `swarm` — 30 тулов, 6 по умолчанию
 
-Тринадцать из двадцати четырёх меняют состояние. Создание, запуск и скачивание —
-единственные write-тулы без `destructiveHint: true`; остановка, перезапуск,
-удаление, exec, подключение сети и удаление образов, томов и сетей помечены как
-разрушительные.
+Сервисы, ноды, задачи, секреты, конфиги и вызовы членства в кластере (`swarm_init`,
+`swarm_join`, `swarm_leave`, unlock). Набор по умолчанию: `service_list`,
+`service_inspect`, `service_create`, `service_delete`, `node_list`, `task_list`.
 
-## `swarm`
+## `k8s` — 105 тулов, 14 по умолчанию
 
-Сервисы: `swarm_service_list`, `swarm_service_inspect`, `swarm_service_create`,
-`swarm_service_scale`, `swarm_service_remove`. Кластер: `swarm_node_list`,
-`swarm_task_list`. Создание, масштабирование и удаление сервисов — записи.
+Неймспейсы, поды, деплойменты, replica sets, jobs и cron jobs, config maps, секреты,
+сервисы, ingress и ingress-контроллеры, persistent volumes и claims, storage classes,
+resource quotas, роли и role bindings, service accounts, ноды и метрики, а также
+dry-run манифестов и список дашбордов.
 
-## `k8s`
+Набор по умолчанию: `kubernetes_namespaces_list`, `kubernetes_pods_list`,
+`kubernetes_pod_logs`, `kubernetes_pod_delete`, `kubernetes_pod_restart`,
+`kubernetes_deployment_scale`, `kubernetes_deployment_rollback`,
+`kubernetes_config_maps_list`, `kubernetes_secrets_list`,
+`kubernetes_services_list`, `kubernetes_cluster_ingresses_list`,
+`kubernetes_persistent_volume_claims_list`, `kubernetes_nodes_list`, `node_drain`.
 
-Неймспейсы и рабочие нагрузки: `k8s_namespace_list`, `k8s_pod_list`, `k8s_pod_logs`,
-`k8s_pod_delete`, `k8s_deployment_scale`, `k8s_deployment_restart`,
-`k8s_deployment_rollback`.
+## `helm` — 11 тулов, 6 по умолчанию
 
-Конфигурация и сеть: `k8s_service_list`, `k8s_ingress_list`, `k8s_configmap_list`,
-`k8s_secret_list`, `k8s_pvc_list`, `k8s_kubeconfig_get`.
+Репозитории (`helm_user_repositories_list`, создание и удаление), список и осмотр
+релизов, история, поиск и показ чартов и записи жизненного цикла `helm_install`,
+`helm_rollback`, `helm_delete`. Набор по умолчанию: `helm_list`, `helm_inspect`,
+`helm_install`, `helm_rollback`, `helm_delete`, `helm_user_repositories_list`.
 
-Ноды и события: `k8s_node_drain`, `k8s_node_cordon`, `k8s_event_list`,
-`k8s_custom_resource_list`.
+## `stacks` — 36 тулов, 9 по умолчанию
 
-Удаление пода, масштабирование, перезапуск и откат деплоймента, drain и cordon
-ноды — это шесть записей. `k8s_secret_list` возвращает только метаданные секретов,
-никогда значения; `k8s_kubeconfig_get` возвращает kubeconfig, то есть учётные
-данные — тяните его только ключом, чьим правам доверяете.
+Стеки Portainer для Docker standalone, Docker Swarm и Kubernetes, созданные из
+файла, git-репозитория, строки или URL; `stack_list`, `stack_inspect`,
+`stack_file_inspect`, запуск, остановка, обновление, миграция, git-редеплой и
+удаление; вебхуки; пользовательские шаблоны.
 
-## `helm`
+Набор по умолчанию: `stack_list`, `stack_inspect`, `stack_start`, `stack_stop`,
+`stack_update`, `stack_delete`, `stack_create_docker_standalone_file`,
+`stack_create_docker_standalone_repository`,
+`stack_create_docker_standalone_string`.
 
-`helm_repository_list`, `helm_chart_search`, `helm_release_list`,
-`helm_release_values` — чтения; `helm_release_install`, `helm_release_upgrade`,
-`helm_release_rollback`, `helm_release_uninstall` — записи.
+## `gitops` — 14 тулов, 5 по умолчанию
 
-## `stacks`
+Источники GitOps (список, осмотр, создание, обновление, удаление, проверка),
+workflows (список, осмотр, сводка) и предпросмотр файла репозитория. Набор по
+умолчанию: `gitops_sources_list`, `gitops_source_inspect`,
+`gitops_sources_create_git`, `gitops_sources_delete`, `gitops_sources_test`.
 
-Чтения: `stack_list`, `stack_inspect`, `stack_file_get`, `stack_images` и
-`stack_webhook`, который отдаёт URL вебхука стека.
+## `edge` — 28 тулов, 8 по умолчанию
 
-Записи уровня аккаунта: `stack_create_file`, `stack_create_git`,
-`stack_create_string`, `stack_update`, `stack_start`, `stack_stop`, `stack_remove`,
-`stack_migrate`.
+Edge-группы, edge-стеки, edge-задачи и задачи заданий, а также edge-статус
+окружения. Набор по умолчанию: `edge_group_list`, `edge_stack_list`,
+`edge_stack_inspect`, `edge_stack_file`, `edge_job_list`, `edge_job_tasks_list`,
+`edge_job_task_logs_inspect`, `endpoint_edge_status_inspect`.
 
-## `gitops`
+## `admin` — 55 тулов, 12 по умолчанию
 
-`gitops_source_list`, `gitops_source_add`, `gitops_source_remove`,
-`gitops_source_test`, `gitops_file_preview`, `gitops_workflow_list`. Добавление и
-удаление источника — записи.
+Пользователи, команды и членство, роли, реестры, группы эндпоинтов, resource
+controls, теги, резервные копии и восстановление, проверка LDAP, настройки SSL,
+шаблоны и вызовы аутентификации. Набор по умолчанию: `user_list`, `user_inspect`,
+`user_create`, `user_delete`, `team_list`, `team_create`, `team_membership_create`,
+`role_list`, `endpoint_group_list`, `registry_list`, `tag_list`,
+`resource_control_create`.
 
-## `edge`
+`backup` возвращает архив резервной копии сервера: считайте ответ чувствительным.
 
-Все восемь — чтения: `edge_group_list`, `edge_stack_list`, `edge_job_list`,
-`edge_job_logs`, `edge_config_list`, `edge_key_list`, `edge_wait_for_command`,
-`edge_update_schedule_list`. `edge_wait_for_command` ждёт команду для edge-агента,
-так что может висеть всё время ожидания.
+## `observability` — 4 тула, все по умолчанию
 
-## `admin`
+`status_inspect`, `system_events`, `kubernetes_events` и
+`kubernetes_events_namespace_list`. Два потока событий принимают временное окно и
+возвращают то, что в нём произошло.
 
-Пользователи и команды: `admin_user_list`, `admin_user_inspect`, `admin_user_create`,
-`admin_user_remove`, `admin_team_list`, `admin_team_create`, `admin_membership_add`,
-`admin_role_list`.
-
-Инвентаризация и настройки: `admin_endpoint_group_list`,
-`admin_resource_control_list`, `admin_registry_list`, `admin_tag_list`,
-`admin_backup_get`, `admin_ldap_get`, `admin_ssl_get`, `admin_settings_update`.
-
-Создание и удаление пользователей, добавление в команды и обновление настроек — это
-пять записей. `admin_backup_get` возвращает архив резервной копии сервера: считайте
-ответ чувствительным.
-
-## `observability`
-
-Четыре чтения: `observability_user_activity`, `observability_endpoint_activity`,
-`observability_docker_events`, `observability_k8s_events`. Два потока событий
-принимают временное окно и возвращают то, что в нём произошло.
-
-## `raw`
+## `raw` — 3 тула, все по умолчанию
 
 `portainer_raw`, `docker_raw`, `k8s_raw` — один произвольный запрос на каждую цель,
-с методом, путём и телом по выбору вызывающего. Все три помечены как записи, потому
-что сырой запрос может изменить что угодно, и ни один не подтягивается как
-зависимость. Включение `raw` — явное решение оператора.
+с методом, путём, query и JSON-телом по выбору вызывающего. Путь дописывается к
+`/api`, `/api/endpoints/{environment}/docker` или
+`/api/kubernetes/{environment}`; `docker_raw` и `k8s_raw` требуют `environment`.
+Все три помечены как записи, потому что сырой запрос может изменить что угодно, и ни
+один не подтягивается как зависимость. Включение `raw` — явное решение оператора.
+
+## Стриминговые операции
+
+Семь тулов не отвечают сами по себе. Четыре стримят, когда параметр истинен:
+`container_logs`, `service_logs`, `task_logs` и `kubernetes_pod_logs` несут параметр
+`follow`. Три стримят по пути независимо от аргументов: `system_events`,
+`container_attach` и `exec_start`.
+
+Вызов, который висел бы до таймаута клиента, отвергается до отправки запроса, а
+сообщение называет предел, который надо поменять: передайте `follow=false` или
+ограничьте окно через `until`. Пометки живут в `streaming_params` и
+`streaming_paths` в `api/toolsets.yaml`, а отказ — в одном месте, поэтому покрывает
+каждый тул, помеченный каталогом.
+
+## Метаданные Kubernetes
+
+Ответы Kubernetes повторяют `metadata.managedFields` в каждом объекте, и это
+большая часть их объёма. 117 тулов, чей путь операции содержит `/kubernetes/`,
+помечены генератором `strip_managed_fields: true`; до того как ответ дойдёт до
+модели, поле вырезается на любой глубине. Тулы вне этого пути, включая `k8s_raw`,
+сохраняют ответ как он пришёл.
+
+## Большие ответы
+
+Тело ответа обрезается на 1 МиБ. Если обрезанное тело — JSON-массив, тул отдаёт
+страницу вместо сломанного префикса: первые 50 элементов плюс `_truncated`, `_total`
+и `_hint`, называющий тул, которым список можно сузить. Обрезанное тело не-массива
+сохраняет простой маркер `…[truncated at N bytes: ask for a narrower filter or a
+smaller range]`.
 
 ## Правила выбора
 
 - Пустой список `toolsets` — ошибка; хотя бы один набор должен быть назван.
 - Имя, которого нет в каталоге, отвергается со списком известных имён.
-- Не включённая зависимость отвергается: `toolset "helm" requires "k8s", which is
-  not enabled`.
+- Не включённая зависимость отвергается:
+  `toolset "helm" requires "k8s", which is not enabled`.
 - При `--read-only` или `server.read_only` write-тулы отбрасываются на этапе
-  регистрации. `tools/list` у клиента их не показывает; проверки внутри обработчика
-  нет.
-- Включение объявленного набора без обработчиков — ошибка, а не пустой набор.
+  регистрации. `tools/list` у клиента их не показывает.
+- Если выборка осталась без тулов, старт падает с
+  `no tools selected for toolsets ...`, а не отдаёт пустой сервер.
 
-Защита на этапе компиляции — карта реализованных наборов в
-`internal/mcpserver/server.go`; чтобы набор заработал, к обработчикам добавляют его
-имя, и ошибка старта исчезает сама.
+## Изменение поверхности
+
+Не правьте `internal/catalog/generated.yaml`: он сгенерирован. Добавить или
+перенести операцию — правка `api/toolsets.yaml` (карта тегов, переопределение в
+`operation_toolsets` или запись в `extras`), выбор принадлежности к набору по
+умолчанию — правка `api/default-tools.yaml`, затем:
+
+```sh
+make catalog
+go test ./tools/cataloggen
+```
+
+`TestBuildMatchesCommittedFile` падает, когда закоммиченный файл расходится со свежим
+прогоном, так что дифф и есть поверхность ревью.

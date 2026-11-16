@@ -2,173 +2,220 @@
 
 # Toolsets
 
-The catalog declares 113 operations across eleven toolsets. Every operation has a
-name, a description, annotations and optional input and output schemas, and nothing
-else in the code restates them. This page is a view of
-`internal/catalog/catalog.yaml`; when the two disagree, the catalog is what the
-server registers.
+The catalog carries 394 tools in eleven toolsets. Every tool is data: a name, a
+description, MCP annotations, an input schema, an optional output schema and the HTTP
+operation behind it. No handler restates any of that. The list itself lives in
+`internal/catalog/generated.yaml`; this page is a view of it, and when the two
+disagree the server registers what the generated file says.
 
-## Status
+## Where the tools come from
 
-Only `core` has handlers. The other ten sets are declared with all of their
-operations and annotations, but selecting one stops the server:
+| File | Role |
+|---|---|
+| `api/portainer-2.45.yaml`, `api/docker-engine-1.57.yaml` | The OpenAPI documents every tool is derived from |
+| `api/toolsets.yaml` | Tag-to-toolset map, per-operation overrides, skipped paths, streaming marks, `managedFields` paths, name rewrites and the three raw extras |
+| `api/default-tools.yaml` | The 87 tools registered when `--exhaustive` is off |
+| `tools/cataloggen` (`make catalog`) | Reads the four files above and writes `internal/catalog/generated.yaml` |
+| `internal/catalog/catalog.yaml` | Toolset names, descriptions and `depends_on` edges; no tool lists |
+| `internal/catalog/generated.yaml` | Every tool of every set; embedded in the binary |
 
-```text
-toolset "docker" not implemented yet (stage 0 implements: core)
-```
-
-That is deliberate: a tool that cannot answer is worse than an absent tool, because
-a model will call it. The catalog entry doubles as the specification for the stage
-that implements it.
+Both documents are embedded with `//go:embed` and merged at startup
+(`internal/catalog/catalog.go`): the curated document supplies the set descriptions
+and dependencies, the generated one supplies the tools. The merge refuses a toolset
+that appears in only one of them, and refuses a tool list in `catalog.yaml`.
 
 ## Summary
 
-| Toolset | Depends on | Operations | Read-only | Write | Status |
-|---|---|---|---|---|---|
-| `core` | — | 7 | 7 | 0 | Implemented |
-| `docker` | `core` | 24 | 11 | 13 | Declared for stage 1 |
-| `swarm` | `docker` | 7 | 4 | 3 | Declared for stage 1 |
-| `k8s` | `core` | 17 | 11 | 6 | Declared for stage 3 |
-| `helm` | `k8s` | 8 | 4 | 4 | Declared for stage 3 |
-| `stacks` | `docker` | 13 | 5 | 8 | Declared for stage 2 |
-| `gitops` | `stacks` | 6 | 4 | 2 | Declared for stage 2 |
-| `edge` | `core` | 8 | 8 | 0 | Declared for stage 4 |
-| `admin` | `core` | 16 | 11 | 5 | Declared for stage 4 |
-| `observability` | `core` | 4 | 4 | 0 | Declared for stage 4 |
-| `raw` | — | 3 | 0 | 3 | Declared for stage 4 |
+| Toolset | Depends on | Tools | Default |
+|---|---|---|---|
+| `core` | — | 29 | 7 |
+| `docker` | `core` | 79 | 13 |
+| `swarm` | `docker` | 30 | 6 |
+| `k8s` | `core` | 105 | 14 |
+| `helm` | `k8s` | 11 | 6 |
+| `stacks` | `docker` | 36 | 9 |
+| `gitops` | `stacks` | 14 | 5 |
+| `edge` | `core` | 28 | 8 |
+| `admin` | `core` | 55 | 12 |
+| `observability` | `core` | 4 | 4 |
+| `raw` | — | 3 | 3 |
 
-The dependency graph is `helm → k8s → core` and `gitops → stacks → docker → core`;
-`edge`, `admin` and `observability` hang off `core`. A set cannot be enabled without
-its dependencies, and `raw` is never pulled in by anything.
+The dependency graph is `helm → k8s → core` and
+`gitops → stacks → docker → core`; `edge`, `admin` and `observability` hang off
+`core`. A set cannot be enabled without its dependencies, and `raw` is never pulled
+in by anything.
 
-## `core` — implemented
+`--exhaustive` is the difference between the two right-hand columns: without it the
+server registers only tools marked `default: true`, which is the curated set in
+`api/default-tools.yaml`. With it, every tool of the enabled sets is registered.
+`--read-only` filters either selection down to tools annotated `readOnlyHint: true`
+at registration time, so the client never sees a tool it may not call.
 
-Server identity and inventory, all read-only, all backed by Portainer's own API:
+## How a tool runs
 
-| Tool | Effect |
-|---|---|
-| `system_version` | `GET /api/system/version` — version, API version, edition |
-| `system_status` | `GET /api/system/status` — liveness of the Portainer server |
-| `system_info` | `GET /api/system/info` — host and platform counters |
-| `settings_get` | `GET /api/settings` — server settings |
-| `whoami` | `GET /api/users/me` — the user behind the API key |
-| `environment_list` | `GET /api/endpoints`, reduced to id, name, type, status and URL |
-| `environment_inspect` | `GET /api/endpoints/{id}` with snapshot history; takes an integer `id` |
+One handler serves every tool. `internal/mcpserver/tools.go` builds the request from
+the catalog entry and the arguments — path parameters are escaped and substituted,
+remaining input properties become query values (arrays as repeated keys, or one
+comma-joined value where the catalog says so), and the body property is sent as JSON.
+`internal/portainer/exec.go` performs the call with `X-API-KEY`. A JSON answer comes
+back both as text content and as `structuredContent`; 237 tools also declare an
+output schema, which the client receives as `outputSchema`.
 
-`environment_list` translates Portainer's numeric environment type into `docker`,
-`agent`, `azure`, `edge-agent`, `kubernetes-local`, `kubernetes`, `edge-kubernetes`,
-or `unknown(<n>)`, and status into `up`, `down` or `unknown(<n>)`. Other `core` tools
-return the Portainer response as it arrives.
+## `core` — 29 tools, 7 by default
 
-## `docker`
+Server identity and settings (`system_version`, `system_status`, `system_info`,
+`whoami`, `motd`, `settings_get`, `settings_public`, and the writes
+`settings_update`, `system_upgrade`), environments (`environment_list`,
+`environment_inspect`, `endpoint_*` create/update/delete, associations, snapshots,
+summary), and endpoint registries.
 
-Containers: `docker_container_list`, `docker_container_inspect`,
-`docker_container_create`, `docker_container_start`, `docker_container_stop`,
-`docker_container_restart`, `docker_container_remove`, `docker_container_logs`,
-`docker_container_stats`, `docker_container_top`, `docker_container_exec`.
+The default set is the seven identity and inventory tools:
+`system_version`, `system_status`, `system_info`, `settings_get`, `whoami`,
+`environment_list`, `environment_inspect`.
 
-Images: `docker_image_list`, `docker_image_pull`, `docker_image_remove`.
+## `docker` — 79 tools, 13 by default
 
-Networks: `docker_network_list`, `docker_network_create`, `docker_network_connect`,
-`docker_network_remove`.
+Containers (`container_list`, `container_inspect`, `container_logs`, create, start,
+stop, restart, delete, exec, stats, top, archive, prune and the rest), images,
+networks, volumes, plugins, distribution and daemon system calls. Docker operations go
+through the Portainer proxy; `environment` is a required argument, renamed from the
+specification's `environmentId` by `param_renames` in `api/toolsets.yaml`.
 
-Volumes: `docker_volume_list`, `docker_volume_create`, `docker_volume_remove`.
+The default set covers the common container and image reads plus the lifecycle
+writes: `container_list`, `container_inspect`, `container_logs`, `container_create`,
+`container_start`, `container_stop`, `container_restart`, `container_delete`,
+`container_exec`, `image_list`, `image_inspect`, `image_delete`, `network_list`.
 
-Daemon: `docker_system_df`, `docker_system_info`, `docker_system_events`.
+## `swarm` — 30 tools, 6 by default
 
-Thirteen of the twenty-four change state. Creating, starting and pulling are the only
-writes without `destructiveHint: true`; stopping, restarting, removing, exec-ing,
-connecting a network and removing images, volumes and networks are marked
-destructive.
+Services, nodes, tasks, secrets, configs and the swarm membership calls (`swarm_init`,
+`swarm_join`, `swarm_leave`, unlock). The default set is `service_list`,
+`service_inspect`, `service_create`, `service_delete`, `node_list`, `task_list`.
 
-## `swarm`
+## `k8s` — 105 tools, 14 by default
 
-Services: `swarm_service_list`, `swarm_service_inspect`, `swarm_service_create`,
-`swarm_service_scale`, `swarm_service_remove`. Cluster: `swarm_node_list`,
-`swarm_task_list`. Creating, scaling and removing services are writes.
+Namespaces, pods, deployments, replica sets, jobs and cron jobs, config maps, secrets,
+services, ingresses and ingress controllers, persistent volumes and claims, storage
+classes, resource quotas, roles and role bindings, service accounts, nodes and
+metrics, plus a manifest dry run and a dashboard listing.
 
-## `k8s`
+The default set is `kubernetes_namespaces_list`, `kubernetes_pods_list`,
+`kubernetes_pod_logs`, `kubernetes_pod_delete`, `kubernetes_pod_restart`,
+`kubernetes_deployment_scale`, `kubernetes_deployment_rollback`,
+`kubernetes_config_maps_list`, `kubernetes_secrets_list`,
+`kubernetes_services_list`, `kubernetes_cluster_ingresses_list`,
+`kubernetes_persistent_volume_claims_list`, `kubernetes_nodes_list`, `node_drain`.
 
-Namespaces and workloads: `k8s_namespace_list`, `k8s_pod_list`, `k8s_pod_logs`,
-`k8s_pod_delete`, `k8s_deployment_scale`, `k8s_deployment_restart`,
-`k8s_deployment_rollback`.
+## `helm` — 11 tools, 6 by default
 
-Configuration and networking: `k8s_service_list`, `k8s_ingress_list`,
-`k8s_configmap_list`, `k8s_secret_list`, `k8s_pvc_list`, `k8s_kubeconfig_get`.
+Repositories (`helm_user_repositories_list`, create and delete), release listing and
+inspection, history, chart search and show, and the lifecycle writes
+`helm_install`, `helm_rollback`, `helm_delete`. The default set is
+`helm_list`, `helm_inspect`, `helm_install`, `helm_rollback`, `helm_delete`,
+`helm_user_repositories_list`.
 
-Nodes and events: `k8s_node_drain`, `k8s_node_cordon`, `k8s_event_list`,
-`k8s_custom_resource_list`.
+## `stacks` — 36 tools, 9 by default
 
-Deleting a pod, scaling, restarting or rolling back a deployment, draining or
-cordoning a node are the six writes. `k8s_secret_list` returns secret metadata only,
-never values; `k8s_kubeconfig_get` returns a kubeconfig, which is credential
-material — fetch it only with an API key whose permissions you trust.
+Portainer stacks for Docker standalone, Docker Swarm and Kubernetes, created from a
+file, a git repository, a string or a URL; `stack_list`, `stack_inspect`,
+`stack_file_inspect`, start, stop, update, migrate, git redeploy and delete; webhooks;
+custom templates.
 
-## `helm`
+The default set is `stack_list`, `stack_inspect`, `stack_start`, `stack_stop`,
+`stack_update`, `stack_delete`, `stack_create_docker_standalone_file`,
+`stack_create_docker_standalone_repository`,
+`stack_create_docker_standalone_string`.
 
-`helm_repository_list`, `helm_chart_search`, `helm_release_list`,
-`helm_release_values` are reads; `helm_release_install`, `helm_release_upgrade`,
-`helm_release_rollback`, `helm_release_uninstall` are writes.
+## `gitops` — 14 tools, 5 by default
 
-## `stacks`
+GitOps sources (list, inspect, create, update, delete, test), workflows (list,
+inspect, summary) and a repository file preview. The default set is
+`gitops_sources_list`, `gitops_source_inspect`, `gitops_sources_create_git`,
+`gitops_sources_delete`, `gitops_sources_test`.
 
-Reads: `stack_list`, `stack_inspect`, `stack_file_get`, `stack_images`, and
-`stack_webhook`, which returns the webhook URL of a stack.
+## `edge` — 28 tools, 8 by default
 
-Account-level writes: `stack_create_file`, `stack_create_git`, `stack_create_string`,
-`stack_update`, `stack_start`, `stack_stop`, `stack_remove`, `stack_migrate`.
+Edge groups, edge stacks, edge jobs and job tasks, and the edge status of an
+environment. The default set is `edge_group_list`, `edge_stack_list`,
+`edge_stack_inspect`, `edge_stack_file`, `edge_job_list`, `edge_job_tasks_list`,
+`edge_job_task_logs_inspect`, `endpoint_edge_status_inspect`.
 
-## `gitops`
+## `admin` — 55 tools, 12 by default
 
-`gitops_source_list`, `gitops_source_add`, `gitops_source_remove`,
-`gitops_source_test`, `gitops_file_preview`, `gitops_workflow_list`. Adding or
-removing a source is a write.
+Users, teams and memberships, roles, registries, endpoint groups, resource controls,
+tags, backup and restore, LDAP check, SSL settings, templates and the authentication
+calls. The default set is `user_list`, `user_inspect`, `user_create`, `user_delete`,
+`team_list`, `team_create`, `team_membership_create`, `role_list`,
+`endpoint_group_list`, `registry_list`, `tag_list`, `resource_control_create`.
 
-## `edge`
+`backup` returns a server backup archive: treat the response as sensitive.
 
-All eight are reads: `edge_group_list`, `edge_stack_list`, `edge_job_list`,
-`edge_job_logs`, `edge_config_list`, `edge_key_list`, `edge_wait_for_command`,
-`edge_update_schedule_list`. `edge_wait_for_command` waits for a command to reach an
-edge environment, so it may block for the duration of that wait.
+## `observability` — 4 tools, all by default
 
-## `admin`
+`status_inspect`, `system_events`, `kubernetes_events` and
+`kubernetes_events_namespace_list`. The two event streams take a time window and
+return what happened in it.
 
-Users and teams: `admin_user_list`, `admin_user_inspect`, `admin_user_create`,
-`admin_user_remove`, `admin_team_list`, `admin_team_create`, `admin_membership_add`,
-`admin_role_list`.
-
-Inventory and settings: `admin_endpoint_group_list`, `admin_resource_control_list`,
-`admin_registry_list`, `admin_tag_list`, `admin_backup_get`, `admin_ldap_get`,
-`admin_ssl_get`, `admin_settings_update`.
-
-Creating and removing users, adding memberships and updating settings are the five
-writes. `admin_backup_get` returns a server backup archive: treat the response as
-sensitive.
-
-## `observability`
-
-Four reads: `observability_user_activity`, `observability_endpoint_activity`,
-`observability_docker_events`, `observability_k8s_events`. The two event streams take
-a time window and return what happened in it.
-
-## `raw`
+## `raw` — 3 tools, all by default
 
 `portainer_raw`, `docker_raw`, `k8s_raw` — one arbitrary request per target, with the
-method, path and body chosen by the caller. All three are writes by annotation
-because a raw request may change anything, and none of them is pulled in as a
-dependency. Enabling `raw` is an explicit decision by the operator.
+method, path, query and JSON body chosen by the caller. The path is appended to
+`/api`, `/api/endpoints/{environment}/docker` or `/api/kubernetes/{environment}`;
+`docker_raw` and `k8s_raw` require `environment`. All three are annotated as writes,
+because a raw request may change anything, and none is pulled in as a dependency.
+Enabling `raw` is an explicit decision by the operator.
+
+## Streaming operations
+
+Seven tools do not answer on their own. Four stream when a parameter is true:
+`container_logs`, `service_logs`, `task_logs` and `kubernetes_pod_logs` carry a
+`follow` parameter. Three stream by path whatever the arguments are: `system_events`,
+`container_attach` and `exec_start`.
+
+A call that would stay open until the client times out is refused before any request
+is sent, with a message naming the limit to change: pass `follow=false`, or bound the
+window with `until`. The flags come from `streaming_params` and `streaming_paths` in
+`api/toolsets.yaml`, and the refusal lives in one place, so it covers every tool the
+catalog marks.
+
+## Kubernetes metadata
+
+Kubernetes answers repeat `metadata.managedFields` in every object, and it is most of
+their volume. The 117 tools whose operation path contains `/kubernetes/` are marked
+`strip_managed_fields: true` by the generator; before the answer reaches the model,
+the field is removed at every depth. Tools outside that path, including `k8s_raw`,
+keep the answer as it arrived.
+
+## Large answers
+
+A response body is cut at 1 MiB. If the cut body is a JSON array, the tool returns a
+page instead of a broken prefix: the first 50 elements plus `_truncated`, `_total`
+and a `_hint` naming the tool to narrow the list with. A cut body that is not an
+array keeps the plain marker `…[truncated at N bytes: ask for a narrower filter or a
+smaller range]`.
 
 ## Selection rules
 
 - An empty `toolsets` list is an error; at least one set must be named.
 - A name that is not in the catalog is rejected with the list of known names.
-- A dependency that is not enabled is rejected: `toolset "helm" requires "k8s",
-  which is not enabled`.
+- A dependency that is not enabled is rejected:
+  `toolset "helm" requires "k8s", which is not enabled`.
 - With `--read-only` or `server.read_only`, write tools are dropped at registration
-  time. The client's `tools/list` never shows them; there is no runtime check inside
-  a handler.
-- Enabling a declared set with no handlers is an error, not an empty toolset.
+  time. The client's `tools/list` never shows them.
+- If the selection ends with zero tools, startup fails with
+  `no tools selected for toolsets ...` rather than serving an empty server.
 
-The compile-time guard is a map of implemented toolsets in
-`internal/mcpserver/server.go`; adding handlers for a set means adding its name
-there, and the startup error disappears on its own.
+## Changing the surface
+
+Do not edit `internal/catalog/generated.yaml`; it is generated. Add or move an
+operation by editing `api/toolsets.yaml` (the tag map, an `operation_toolsets`
+override, or an `extras` entry), choose whether it belongs to the default set in
+`api/default-tools.yaml`, then run:
+
+```sh
+make catalog
+go test ./tools/cataloggen
+```
+
+`TestBuildMatchesCommittedFile` fails when the committed file drifts from a fresh
+run, so the diff is the review surface.
