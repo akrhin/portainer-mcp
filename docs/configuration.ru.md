@@ -1,0 +1,185 @@
+> Русский перевод `docs/configuration.md`; английский текст — авторитетный.
+
+[Индекс документации](index.ru.md) · [English](configuration.md)
+
+# Конфигурация
+
+Один YAML-файл на процесс, один блок на инстанс Portainer, один список наборов.
+Файл читается один раз при старте и проверяется строго: неизвестный ключ,
+отсутствующий инстанс или сломанная зависимость набора останавливают сервер до
+того, как он начнёт обслуживать запросы.
+
+```yaml
+server:
+  transport: stdio
+  read_only: false
+  exhaustive: false
+instances:
+  - name: prod
+    url: https://portainer.example.com:9443
+    api_key: ${PORTAINER_API_KEY}
+    tls_verify: false
+toolsets: [core]
+```
+
+`config.example.yaml` в корне репозитория — та же форма, но с комментариями.
+
+## Верхний уровень
+
+| Ключ | Тип | Обязателен | Смысл |
+|---|---|---|---|
+| `server` | mapping | да | Транспорт и переключатели каталога |
+| `instances` | list | да | Один или несколько серверов Portainer; минимум один |
+| `toolsets` | list of strings | да | Имена наборов для регистрации; список не должен быть пустым |
+
+Любой другой ключ на любом уровне отвергается (YAML-декодирование идёт с
+`KnownFields`), поэтому опечатка вроде `toolset:` падает, а не игнорируется молча.
+
+## `server`
+
+| Ключ | Тип | По умолчанию | Смысл |
+|---|---|---|---|
+| `transport` | string | `stdio` | `stdio` или `http`. Пустое значение означает `stdio` |
+| `listen` | string | — | Адрес для прослушивания, например `127.0.0.1:17717`. Обязателен при `transport: http`, при stdio игнорируется |
+| `read_only` | bool | `false` | Регистрировать только тулы с `readOnlyHint: true` |
+| `exhaustive` | bool | `false` | По тулу на каждую операцию API. Любое `true` останавливает старт с `exhaustive catalog requires generated client (stage 1)` |
+
+HTTP-транспорт открыт обычным HTTP и обслуживает Streamable HTTP по пути `/mcp`.
+Ставьте TLS перед ним, если эндпоинт доступен извне хоста.
+
+## `instances[]`
+
+| Ключ | Тип | Обязателен | Смысл |
+|---|---|---|---|
+| `name` | string | да | Имя, которым инстанс вызывается через аргумент `instance`. Уникальное, непустое |
+| `url` | string | да | Абсолютный `http`- или `https`-URL с хостом, например `https://portainer.example.com:9443` |
+| `api_key` | string | да | API-ключ Portainer, уходит в заголовке `X-API-KEY`. Непустой после подстановки `${VAR}` |
+| `tls_verify` | bool или string | `false` | Проверять сертификат сервера. `false` принимает самоподписанные сертификаты |
+| `ca_file` | string | — | PEM-файл с CA-сертификатами в дополнение к системному хранилищу |
+
+Первый инстанс — цель по умолчанию, когда тул вызван без `instance`. Неизвестное
+имя в аргументе — ошибка со списком настроенных имён.
+
+`tls_verify` по умолчанию `false`, то есть проверка сертификата выключена и
+самоподписанные инстансы работают сразу. Ставьте `true` для инстанса с сертификатом
+публичного CA и добавляйте `ca_file`, когда CA частный.
+
+`ca_file` читается один раз при старте. Нечитаемый файл или файл без сертификатов
+роняет старт, а не оставляет доверие пустым молча.
+
+## `toolsets[]`
+
+Имена наборов для регистрации в написании каталога: `core`, `docker`, `swarm`,
+`k8s`, `helm`, `stacks`, `gitops`, `edge`, `admin`, `observability`, `raw`. Что
+внутри каждого — в [toolsets.ru.md](toolsets.ru.md).
+
+Список проверяется дважды: каждое имя должно быть в каталоге, и каждая зависимость
+включённого набора должна быть включена рядом. `helm` без `k8s`, например,
+отвергается на старте. Выбор набора, который объявлен, но ещё без обработчиков, —
+тоже ошибка старта: сообщение называет набор и говорит, какие реализованы.
+
+`toolsets` валидируется даже когда `--toolsets` заменяет его из командной строки.
+Держите в файле корректный список.
+
+## Подстановка `${VAR}`
+
+Строковые поля принимают ссылку на переменную окружения вместо литерала:
+
+```yaml
+instances:
+  - name: prod
+    url: ${PORTAINER_URL}
+    api_key: ${PORTAINER_API_KEY}
+```
+
+| Поле | Принимает `${VAR}` |
+|---|---|
+| `server.transport` | да |
+| `instances[].url` | да |
+| `instances[].api_key` | да |
+| `instances[].ca_file` | да |
+| `instances[].tls_verify` | да, в строковой форме |
+
+Правила по коду:
+
+- Ссылка должна занимать всё значение. `${A}-suffix` берётся буквально, без
+  подстановки.
+- Пробелы по краям обрезаются до проверки.
+- Незаданная или пустая переменная — ошибка, а не пустая строка. Для `api_key`
+  сообщение называет переменную: `instance "prod": api_key is empty; set
+  PORTAINER_API_KEY`.
+- Подставленное значение подставляется снова, если само является ссылкой; цепочка,
+  которая продолжает указывать на другую ссылку, падает с `nests too deep`.
+- `tls_verify` принимает и обычное YAML-булево. Строковая форма проходит ту же
+  подстановку, затем `strconv.ParseBool`, поэтому работают `true`, `1`, `false` и
+  `0`, а всё остальное падает с `expected a boolean, got "..."`.
+
+## Флаги
+
+| Флаг | По умолчанию | Действие |
+|---|---|---|
+| `--config` | `config.yaml` | Путь к YAML-файлу |
+| `--toolsets` | — | Имена через запятую, пробелы вокруг элементов обрезаются. Заменяет `toolsets` из файла; неизвестное имя падает до чтения файла |
+| `--read-only` | `false` | Складывается с `server.read_only`: read-only включается любым из них |
+| `--exhaustive` | `false` | Складывается с `server.exhaustive`: любой из них останавливает старт до этапа 1 |
+
+## Ошибки старта
+
+Сообщения, которые можно встретить до того, как сервер начнёт обслуживать запросы,
+приведены так, как их печатает код:
+
+| Сообщение | Причина |
+|---|---|
+| `read config: ...` | Файл не читается |
+| `parse config <path>: ...` | Некорректный YAML или неизвестный ключ |
+| `config: at least one instance is required` | `instances` пуст или отсутствует |
+| `config: instance url "..." has no name` | Инстанс без `name` |
+| `config: duplicate instance name "..."` | Два инстанса с одним именем |
+| `config: instance "...": url must be absolute http(s), got "..."` | `url` относительный или с другой схемой |
+| `no toolsets enabled` | `toolsets` пуст |
+| `unknown toolset "..." (known: ...)` | Имени нет в каталоге; известные имена перечислены |
+| `toolset "..." requires "...", which is not enabled` | Не включена зависимость |
+| `instance "...": api_key is required` | `api_key` пуст |
+| `config: server.listen is required for http transport` | `transport: http` без `listen` |
+| `config: server.transport must be stdio or http, got "..."` | Другое имя транспорта |
+| `toolset "..." not implemented yet (stage 0 implements: core)` | Объявленный набор без обработчиков |
+| `exhaustive catalog requires generated client (stage 1)` | `--exhaustive` или `server.exhaustive: true` |
+| `no tools selected for toolsets ...` | Read-only-фильтр убрал все тулы выборки |
+
+## Примеры
+
+### Транспорт HTTP
+
+```yaml
+server:
+  transport: http
+  listen: 127.0.0.1:17717
+  read_only: true
+instances:
+  - name: prod
+    url: ${PORTAINER_URL}
+    api_key: ${PORTAINER_API_KEY}
+    tls_verify: true
+toolsets: [core]
+```
+
+Здесь `read_only: true` убирает все тулы без аннотации read-only; с текущим
+каталогом это значит, что все семь тулов `core` остаются зарегистрированными.
+
+### Несколько инстансов
+
+```yaml
+instances:
+  - name: prod
+    url: https://portainer.example.com:9443
+    api_key: ${PORTAINER_PROD_KEY}
+    tls_verify: true
+  - name: lab
+    url: https://portainer.lab.example.com:9443
+    api_key: ${PORTAINER_LAB_KEY}
+    tls_verify: false
+    ca_file: /etc/portainer-mcp/lab-ca.pem
+toolsets: [core]
+```
+
+Вызов без `instance` идёт в `prod`; `{"instance": "lab"}` — во второй.

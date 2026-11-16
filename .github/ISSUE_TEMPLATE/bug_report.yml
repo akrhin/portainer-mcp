@@ -1,0 +1,82 @@
+name: Bug report
+description: Report behaviour that is wrong or crashes
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste credentials, Portainer URLs, API tokens or environment dumps.
+        Redact anything private before submitting.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected and what you got instead. Include the tool name if the problem is in one tool.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. configure the server with ...
+        2. ask the assistant / call tool ...
+        3. observe ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: portainer-mcp version
+      description: Output of `portainer-mcp --version`, or the image tag / commit.
+      placeholder: v0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - linux/amd64
+        - linux/arm64
+        - darwin/amd64
+        - darwin/arm64
+        - windows/amd64
+        - other (describe in logs)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: client
+    attributes:
+      label: MCP client
+      options:
+        - Claude Desktop
+        - Claude Code
+        - VS Code
+        - Codex CLI
+        - other (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (redacted)
+      description: Relevant stderr output. Remove tokens and hostnames.
+      render: text
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before submitting
+      options:
+        - label: I removed secrets and private hostnames from this report.
+          required: true
+        - label: I searched existing issues for the same problem.
+          required: true

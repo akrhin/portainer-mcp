@@ -1,0 +1,114 @@
+version: 2
+
+project_name: portainer-mcp
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: portainer-mcp
+    main: ./cmd/portainer-mcp
+    binary: portainer-mcp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }} -X main.commit={{ .Commit }} -X main.date={{ .Date }}
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Performance
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 2
+    - title: Refactoring
+      regexp: '^.*?refactor(\(.+\))??!?:.+$'
+      order: 3
+    - title: Documentation
+      regexp: '^.*?docs(\(.+\))??!?:.+$'
+      order: 4
+    - title: Other changes
+      order: 999
+  filters:
+    exclude:
+      - '^chore(\(.+\))?:'
+      - '^test(\(.+\))?:'
+      - '^ci(\(.+\))?:'
+      - '^style(\(.+\))?:'
+      - '^build(\(.+\))?:'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+
+dockers:
+  - id: amd64
+    use: buildx
+    dockerfile: Dockerfile.goreleaser
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/akrhin/portainer-mcp:{{ .Version }}-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.source=https://github.com/akrhin/portainer-mcp"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .Commit }}"
+      - "--label=org.opencontainers.image.licenses=MIT"
+
+  - id: arm64
+    use: buildx
+    dockerfile: Dockerfile.goreleaser
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/akrhin/portainer-mcp:{{ .Version }}-arm64"
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.source=https://github.com/akrhin/portainer-mcp"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .Commit }}"
+      - "--label=org.opencontainers.image.licenses=MIT"
+
+docker_manifests:
+  - name_template: "ghcr.io/akrhin/portainer-mcp:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/akrhin/portainer-mcp:{{ .Version }}-amd64"
+      - "ghcr.io/akrhin/portainer-mcp:{{ .Version }}-arm64"
+
+  - name_template: "ghcr.io/akrhin/portainer-mcp:latest"
+    image_templates:
+      - "ghcr.io/akrhin/portainer-mcp:{{ .Version }}-amd64"
+      - "ghcr.io/akrhin/portainer-mcp:{{ .Version }}-arm64"

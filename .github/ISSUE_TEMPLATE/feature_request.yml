@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest a new tool, an option or a behaviour change
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the issue list first — the feature may already be discussed.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What task are you trying to do that the server does not support today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should the server expose or do? For a new tool, name the Portainer endpoint it would call if you know it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you tried, or other designs you weighed.
+    validations:
+      required: false
+
+  - type: textarea
+    id: safety
+    attributes:
+      label: Write or destructive behaviour
+      description: Does the proposal change state in Portainer? Which confirmations should guard it?
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and pull requests for this idea.
+          required: true

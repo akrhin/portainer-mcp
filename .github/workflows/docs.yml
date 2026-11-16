@@ -1,0 +1,28 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    name: docs checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # scripts/docs-check.sh is owned by another track; the gate appears on its own
+      # once the file lands, so a missing script must not fail CI.
+      - name: docs-check
+        if: ${{ hashFiles('scripts/docs-check.sh') != '' }}
+        run: bash scripts/docs-check.sh
+
+      - name: markdownlint
+        if: ${{ hashFiles('docs/**/*.md') != '' }}
+        # globs and rule relaxations live in .markdownlint-cli2.yaml
+        run: npx --yes markdownlint-cli2@0.24.1

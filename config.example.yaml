@@ -1,0 +1,11 @@
+server:
+  transport: stdio          # stdio | http
+  listen: 127.0.0.1:17717   # http only
+  read_only: false
+  exhaustive: false
+instances:
+  - name: homelab
+    url: https://portainer.example.lan:9443
+    api_key: ${PORTAINER_API_KEY}
+    tls_verify: false
+toolsets: [core]

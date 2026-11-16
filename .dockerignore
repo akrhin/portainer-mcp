@@ -1,0 +1,16 @@
+.git
+.github
+.gitignore
+.tmp
+tmp
+docs
+testdata
+*.md
+*.log
+*.out
+coverage.*
+portainer-mcp
+Dockerfile*
+.goreleaser.yaml
+.golangci.yml
+.gitleaks.toml

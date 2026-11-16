@@ -1,0 +1,257 @@
+[
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+      "title": "Inspect environment"
+    },
+    "description": "One environment with its connection details and snapshot history. Use it after environment_list to check whether the agent behind an environment is reachable.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Environment id from environment_list",
+          "type": "integer"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "name": "environment_inspect",
+    "outputSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "Id": {
+          "type": "integer"
+        },
+        "Name": {
+          "type": "string"
+        },
+        "Snapshots": {
+          "description": "Snapshot history, newest last.",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+      "title": "List environments"
+    },
+    "description": "Environments (endpoints) reachable through this Portainer, without snapshots. Use it to find the environment id that other toolsets need.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "environment_list",
+    "outputSchema": {
+      "properties": {
+        "environments": {
+          "items": {
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "description": "up, down or unknown",
+                "type": "string"
+              },
+              "type": {
+                "description": "docker, agent, azure, edge-agent, kubernetes-local, kubernetes or edge-kubernetes",
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "environments"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+      "title": "Get settings"
+    },
+    "description": "Effective Portainer settings (authentication, edge, snapshot interval, templates). Use it when behaviour depends on configuration; nothing here changes it.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "settings_get",
+    "outputSchema": {
+      "additionalProperties": true,
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+      "title": "System info"
+    },
+    "description": "Runtime information of the Portainer server (host, platform, CPUs, memory). Use it to describe the deployment, not to act on it.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "system_info",
+    "outputSchema": {
+      "additionalProperties": true,
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+      "title": "System status"
+    },
+    "description": "Health of the Portainer server itself. Use it as a liveness check before a batch of calls.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "system_status",
+    "outputSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "Status": {
+          "description": "up when the server is healthy",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+      "title": "System version"
+    },
+    "description": "Portainer server version, API version and edition. Use it to check which features this server has before relying on them.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "system_version",
+    "outputSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "ApiVersion": {
+          "type": "string"
+        },
+        "ServerEdition": {
+          "description": "CE or EE",
+          "type": "string"
+        },
+        "Version": {
+          "description": "Portainer server version",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+      "title": "Current user"
+    },
+    "description": "The user the configured API key belongs to. Use it first when a call fails with 401 or 403 to see whose permissions apply.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "whoami",
+    "outputSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "Id": {
+          "type": "integer"
+        },
+        "Role": {
+          "description": "1 admin, 2 user",
+          "type": "integer"
+        },
+        "Username": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+]

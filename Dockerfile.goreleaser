@@ -1,0 +1,8 @@
+# Used by goreleaser only: the binary is already built and cross-compiled,
+# so the image just carries it. See Dockerfile for the from-source build.
+FROM gcr.io/distroless/static:nonroot
+
+COPY portainer-mcp /portainer-mcp
+
+USER nonroot:nonroot
+ENTRYPOINT ["/portainer-mcp"]

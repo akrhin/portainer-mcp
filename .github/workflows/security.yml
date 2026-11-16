@@ -1,0 +1,111 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+
+# Read-only by default; only the jobs that upload findings widen it.
+permissions:
+  contents: read
+
+jobs:
+  gosec:
+    name: gosec
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # SARIF upload writes to the code scanning API, hence security-events: write.
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: run gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.4
+          "$(go env GOPATH)/bin/gosec" -no-fail -fmt sarif -out gosec.sarif ./...
+
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: gosec.sarif
+          category: gosec
+
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          "$(go env GOPATH)/bin/govulncheck" ./...
+
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # scan the whole history, not just the last commit
+
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-review:
+    name: dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/dependency-review-action@v5.0.0
+
+  codeql:
+    name: codeql
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: go
+          queries: security-extended
+
+      - name: build for codeql
+        run: go build ./...
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:go"

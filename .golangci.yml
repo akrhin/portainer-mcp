@@ -1,0 +1,39 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+    - misspell
+    - revive
+  settings:
+    revive:
+      # Minimal rules only: the full default set is noisy on a new codebase.
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: error-return
+        - name: error-strings
+        - name: increment-decrement
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: var-declaration
+        - name: var-naming
+  exclusions:
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+
+formatters:
+  enable:
+    - gofmt

@@ -1,0 +1,20 @@
+# Default gitleaks rules stay on; this only excludes places where token-shaped
+# strings are intentional fixtures, never real credentials.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Test fixtures and documentation examples"
+paths = [
+  '''^testdata/''',
+  '''^docs/.*\.md$''',
+  '''_test\.go$''',
+]
+
+[[allowlists]]
+description = "Obvious placeholders used in docs and tests"
+regexTarget = "match"
+regexes = [
+  '''(?i)(example|dummy|fake|placeholder|redacted)[-_]?(token|key|secret|password)''',
+  '''(?i)BRIDGE[-_]?[A-Z0-9]{4}''',
+]

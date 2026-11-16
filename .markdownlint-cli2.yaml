@@ -1,0 +1,18 @@
+config:
+  # Paragraphs are one long line in most docs here; wrapping rules only add noise.
+  MD013: false
+  MD024:
+    siblings_only: true
+  MD033: false
+  # Pages open with the language/translation notice line by repository convention,
+  # so requiring an H1 first would fight the docs standard.
+  MD041: false
+  # Bare URLs are used as references in research notes.
+  MD034: false
+  # Compact table pipes are the house style; this rule only reformats them.
+  MD060: false
+
+# Dated artifacts in docs/history/ are archives, not living pages.
+globs:
+  - "docs/**/*.md"
+  - "!docs/history/**"

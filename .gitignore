@@ -1,0 +1,12 @@
+# build output
+/portainer-mcp
+/tmp/
+.tmp/
+*.log
+*.out
+coverage.*
+
+# never commit credentials
+.env
+*.key
+config.local.yaml

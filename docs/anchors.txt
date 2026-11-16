@@ -1,0 +1,13 @@
+# Anchor facts: values that must not drift away from the code silently.
+# Format: mode|ERE|path — grep -E semantics, no '|' inside the pattern.
+# 5–10 lines is enough; each one guards a fact stated on a documentation page.
+must|^version: 1$|internal/catalog/catalog.yaml
+must|github\.com/akrhin/portainer-mcp|go.mod
+must|github\.com/modelcontextprotocol/go-sdk v1\.8\.0|go.mod
+must|^go 1\.27|go.mod
+must|flag\.String\("toolsets"|cmd/portainer-mcp/main.go
+must|flag\.Bool\("read-only"|cmd/portainer-mcp/main.go
+must|flag\.Bool\("exhaustive"|cmd/portainer-mcp/main.go
+must|Eleven toolsets|docs/index.md
+must|2026-07-28|docs/index.md
+must|17717|docs/index.md
