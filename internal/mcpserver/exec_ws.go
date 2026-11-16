@@ -1,6 +1,7 @@
 package mcpserver
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -29,6 +30,10 @@ const (
 	execFrameLimit = 1 << 20
 	// execLogCommand is how much of the command the audit line carries.
 	execLogCommand = 200
+	// execMarker is the line the tool types after the command to learn the exit
+	// status: Arcane's terminal protocol reports none. The echo of the printf
+	// itself carries a literal %d, so only the printed digits match.
+	execMarker = "__mcp_exit:"
 	// execCols keeps the TTY wide, so commands that wrap to the terminal width
 	// (docker ps, ls) do not cut their own output.
 	execCols = 200
@@ -91,8 +96,12 @@ func execTool() *mcp.Tool {
 
 // execResult is what one terminal session produced.
 type execResult struct {
-	// Output is what the terminal printed: command echo and prompt included.
-	Output    []byte
+	// Output is what the terminal printed: command echo and prompt included,
+	// with the exit marker line removed.
+	Output []byte
+	// Exit is the status the shell reported, or -1 when the marker never came
+	// (the command called exit, exec, or the session ended first).
+	Exit      int
 	Truncated bool
 	TimedOut  bool
 	// CloseCode and CloseReason come from the server's close frame.
@@ -137,6 +146,9 @@ func (e *env) containerExecWS() handler {
 		}
 
 		text := string(res.Output)
+		if res.Exit >= 0 {
+			text = strings.TrimRight(text, "\n") + fmt.Sprintf("\nexit: %d", res.Exit)
+		}
 		if res.Truncated {
 			text += fmt.Sprintf("\n…[truncated at %d bytes]", execMaxOutput)
 		}
@@ -173,12 +185,15 @@ func execOnce(ctx context.Context, c *portainer.Client, agent, container, comman
 	writeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	// A text frame that is not a resize control also reaches stdin, but binary
-	// cannot be mistaken for one.
-	if err := conn.Write(writeCtx, websocket.MessageBinary, []byte(command+"\nexit\n")); err != nil {
+	// cannot be mistaken for one. The marker line is the only way to learn the
+	// status: it runs after the command in the same shell, so $? is that of the
+	// command and nothing on this side touches the command text.
+	marker := "printf '" + execMarker + "%d__\\n' $?"
+	if err := conn.Write(writeCtx, websocket.MessageBinary, []byte(command+"\n"+marker+"\nexit\n")); err != nil {
 		return execResult{}, fmt.Errorf("send command: %w", err)
 	}
 
-	var res execResult
+	res := execResult{Exit: -1}
 	for {
 		_, data, err := conn.Read(ctx)
 		if err != nil {
@@ -204,7 +219,40 @@ func execOnce(ctx context.Context, c *portainer.Client, agent, container, comman
 	}
 	// A graceful close keeps the server's log free of an abnormal-close warning.
 	_ = conn.Close(websocket.StatusNormalClosure, "command finished")
+	res.Output, res.Exit = stripMarker(res.Output)
 	return res, nil
+}
+
+// stripMarker removes the marker's echo and its printed line from what the
+// terminal shows, and reads the status out of it.
+func stripMarker(out []byte) ([]byte, int) {
+	exit := -1
+	markerCmd := "printf '" + execMarker
+	lines := bytes.SplitAfter(out, []byte("\n"))
+	kept := make([][]byte, 0, len(lines))
+	for _, line := range lines {
+		plain := strings.TrimSpace(strings.TrimSuffix(string(line), "\n"))
+		if strings.HasPrefix(plain, markerCmd) && strings.HasSuffix(plain, "' $?") {
+			continue // the tool's own line, echoed by the terminal
+		}
+		if at := strings.Index(plain, execMarker); at >= 0 {
+			rest := plain[at+len(execMarker):]
+			if end := strings.Index(rest, "__"); end >= 0 {
+				if n, err := strconv.Atoi(rest[:end]); err == nil {
+					exit = n
+				}
+			}
+			// Drop the token; the prompt that may follow it stays only when the
+			// line held something else as well.
+			line = []byte(strings.TrimRight(strings.TrimSpace(plain[:at]), "$#> "))
+			if strings.TrimSpace(string(line)) == "" {
+				continue
+			}
+			line = append(line, '\n')
+		}
+		kept = append(kept, line)
+	}
+	return bytes.Join(kept, nil), exit
 }
 
 func execTimeout(args map[string]any) (int, error) {
@@ -223,8 +271,8 @@ func execTimeout(args map[string]any) (int, error) {
 }
 
 // auditExec writes one line per command to the server's log: the only trace of
-// what an agent did inside a container. The protocol carries no exit status, so
-// the line says so instead of inventing one.
+// what an agent did inside a container. The status comes from the marker line;
+// when the shell died before printing it, the line says unavailable.
 func auditExec(agent, container, command string, started time.Time, res execResult, err error) {
 	status := "ok"
 	switch {
@@ -235,8 +283,12 @@ func auditExec(agent, container, command string, started time.Time, res execResu
 	case res.CloseCode != websocket.StatusNormalClosure && res.CloseReason != "":
 		status = fmt.Sprintf("closed %d: %s", res.CloseCode, res.CloseReason)
 	}
-	fmt.Fprintf(os.Stderr, "arcane-mcp: container_exec agent=%s container=%s exit=unavailable status=%s duration=%s command=%q\n",
-		agent, container, status, time.Since(started).Round(time.Millisecond), cutRunes(command, execLogCommand))
+	exit := "unavailable"
+	if res.Exit >= 0 {
+		exit = strconv.Itoa(res.Exit)
+	}
+	fmt.Fprintf(os.Stderr, "arcane-mcp: container_exec agent=%s container=%s exit=%s status=%s duration=%s command=%q\n",
+		agent, container, exit, status, time.Since(started).Round(time.Millisecond), cutRunes(command, execLogCommand))
 }
 
 // cutRunes shortens s to n characters, marking the cut.

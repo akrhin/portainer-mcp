@@ -1,6 +1,7 @@
 package mcpserver
 
 import (
+	"bytes"
 	"context"
 	"net"
 	"net/http"
@@ -98,7 +99,7 @@ func TestContainerExecWS(t *testing.T) {
 	if key != "k-1" {
 		t.Fatalf("X-API-Key = %q, want k-1", key)
 	}
-	if want := "echo ok\nexit\n"; input != want {
+	if want := "echo ok\nprintf '__mcp_exit:%d__\\n' $?\nexit\n"; input != want {
 		t.Fatalf("session input = %q, want %q", input, want)
 	}
 	if got := text(t, res); got != "ok\r\n" {
@@ -269,5 +270,48 @@ func TestAuditCommandCut(t *testing.T) {
 	}
 	if got := cutRunes(strings.Repeat("я", 210), 200); len([]rune(got)) != 201 || !strings.HasSuffix(got, "…") {
 		t.Fatalf("cut = %d runes", len([]rune(got)))
+	}
+}
+
+// TestContainerExecWSExitCode: the shell prints the marker line the tool types
+// after the command; the status comes from it and the marker itself is gone
+// from the answer.
+func TestContainerExecWSExitCode(t *testing.T) {
+	stub, _ := execStub(t, func(conn *websocket.Conn, r *http.Request) {
+		if _, _, err := conn.Read(r.Context()); err != nil {
+			t.Errorf("read input: %v", err)
+			return
+		}
+		echo := "echo ok; false\r\nprintf '__mcp_exit:%d__\\n' $?\r\nexit\r\n$ ok\r\n$ __mcp_exit:1__\r\n"
+		if err := conn.Write(r.Context(), websocket.MessageBinary, []byte(echo)); err != nil {
+			t.Errorf("write: %v", err)
+			return
+		}
+		_ = conn.Close(websocket.StatusNormalClosure, "shell exited")
+	})
+	res, err := connect(t, execServer(t, stub.URL, Options{AllowExec: true})).
+		CallTool(context.Background(), &mcp.CallToolParams{Name: "container_exec", Arguments: map[string]any{
+			"id": "agent-1", "container": "web", "command": "echo ok; false",
+		}})
+	if err != nil {
+		t.Fatalf("call: %v", err)
+	}
+	got := text(t, res)
+	if strings.Contains(got, execMarker) {
+		t.Fatalf("answer kept the marker: %q", got)
+	}
+	if !strings.HasSuffix(got, "exit: 1") {
+		t.Fatalf("answer = %q, want the reported status", got)
+	}
+}
+func TestStripMarker(t *testing.T) {
+	out := []byte("echo ok; false\r\nprintf '__mcp_exit:%d__\\n' $?\r\nexit\r\n$ ok\r\n$ __mcp_exit:1__\r\n")
+	got, exit := stripMarker(out)
+	t.Logf("got=%q exit=%d", got, exit)
+	if exit != 1 {
+		t.Fatalf("exit = %d", exit)
+	}
+	if bytes.Contains(got, []byte("__mcp_exit")) {
+		t.Fatalf("kept marker: %q", got)
 	}
 }

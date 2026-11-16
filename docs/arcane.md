@@ -69,8 +69,8 @@ unless the operator asks for it: `--allow-exec` or `ARCANE_ALLOW_EXEC=true`, and
 
 What a call does: it opens one TTY session, writes `command` followed by `exit`, reads
 until the server closes the connection, then closes it. There is no stdin stream — the
-session ends with the command, and it is closed on every path, including a timeout and an
-error.
+session ends with the command and the marker line below, and it is closed on every path,
+including a timeout and an error.
 
 | Argument | Default | Effect |
 |---|---|---|
@@ -85,10 +85,13 @@ bytes]` marker, and a frame larger than 1 MiB ends the session.
 
 What the answer contains, and what it does not:
 
-- **No exit code.** Arcane never sends one: its exec runs with a TTY, the socket closes
-  when the shell exits, and the status is only reachable through `ExecInspect`, which the
-  manager does not expose. The audit line therefore prints `exit=unavailable`, and a
-  failing command is recognised by what it printed, not by a status.
+- **Exit code, read from a marker line.** Arcane sends no status: its exec runs with a
+  TTY and the socket only closes when the shell exits, and `ExecInspect` is not exposed.
+  So the tool types one more line into the same shell after the command — `printf
+  '__mcp_exit:%d__\n' $?` — reads the number, strips both its echo and the printed line
+  from the answer, and ends the answer with `exit: N`. A command that ends the shell
+  itself (`exit`, `exec`, a kill) never reaches the marker: the answer then carries no
+  status and the audit line says `exit=unavailable`.
 - **TTY echo.** The session is interactive, so the output repeats the command and the
   prompt, keeps `\r\n` line endings and carries terminal escape sequences. The server
   writes back `stdout` and `stderr` merged.
@@ -96,7 +99,7 @@ What the answer contains, and what it does not:
   the answer then carries `[session closed <code>: <reason>]`.
 
 Every call writes one line to the server's standard error:
-`container_exec agent=… container=… exit=unavailable status=ok|timeout|closed <code>: <reason>|<error text>
+`container_exec agent=… container=… exit=<status|unavailable> status=ok|timeout|closed <code>: <reason>|<error text>
 duration=… command="…"`, the command cut to 200 characters.
 
 ## Run it
