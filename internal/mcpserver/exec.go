@@ -44,13 +44,15 @@ func (e *env) containerExec(create catalog.Tool, startPath string) handler {
 		if err != nil {
 			return nil, err
 		}
-		var created struct{ Id string }
-		if err := json.Unmarshal(resp.Body, &created); err != nil || created.Id == "" {
+		var created struct {
+			ID string `json:"Id"`
+		}
+		if err := json.Unmarshal(resp.Body, &created); err != nil || created.ID == "" {
 			return nil, fmt.Errorf("exec create returned no id: %s", cut(resp.Body, 300))
 		}
 
 		run, err := portainer.ExpandPath(startPath, map[string]any{
-			"environment": args["environment"], "id": created.Id,
+			"environment": args["environment"], "id": created.ID,
 		})
 		if err != nil {
 			return nil, err
