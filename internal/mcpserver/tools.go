@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -85,11 +86,22 @@ func (e *env) call(t catalog.Tool) handler {
 		}
 
 		var body []byte
+		var fields map[string]string
+		var files map[string]portainer.FilePart
 		if t.Operation.Body != "" {
 			v, ok := args[t.Operation.Body]
 			if !ok || v == nil {
 				if required[t.Operation.Body] {
 					return nil, fmt.Errorf("%s is required", t.Operation.Body)
+				}
+			} else if t.Operation.Form {
+				obj, ok := v.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("%s must be an object", t.Operation.Body)
+				}
+				fields, files, err = formParts(obj)
+				if err != nil {
+					return nil, fmt.Errorf("encode %s: %w", t.Operation.Body, err)
 				}
 			} else {
 				body, err = json.Marshal(v)
@@ -99,11 +111,70 @@ func (e *env) call(t catalog.Tool) handler {
 			}
 		}
 
-		resp, err := c.Do(ctx, method, path, values, body)
+		var resp *portainer.Response
+		if t.Operation.Form {
+			resp, err = c.DoForm(ctx, method, path, values, fields, files)
+		} else {
+			resp, err = c.Do(ctx, method, path, values, body)
+		}
 		if err != nil {
 			return nil, err
 		}
 		return apiResult(t, resp), nil
+	}
+}
+
+// formParts splits a body object into the text fields and the file parts of a
+// multipart form. A property that is an object naming a filename is a file: its
+// content comes from "content" as text or from "base64" as binary.
+func formParts(body map[string]any) (map[string]string, map[string]portainer.FilePart, error) {
+	fields := make(map[string]string, len(body))
+	files := make(map[string]portainer.FilePart)
+	for name, v := range body {
+		if obj, ok := v.(map[string]any); ok {
+			if filename, ok := obj["filename"].(string); ok {
+				part := portainer.FilePart{Filename: filename}
+				switch s := obj["content"].(type) {
+				case string:
+					part.Content = []byte(s)
+				default:
+					if encoded, ok := obj["base64"].(string); ok {
+						raw, err := base64.StdEncoding.DecodeString(encoded)
+						if err != nil {
+							return nil, nil, fmt.Errorf("%s.base64: %w", name, err)
+						}
+						part.Content = raw
+					}
+				}
+				files[name] = part
+				continue
+			}
+		}
+		text, err := formValue(v)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%s: %w", name, err)
+		}
+		fields[name] = text
+	}
+	return fields, files, nil
+}
+
+// formValue is how Portainer reads a non-file field: a scalar as its text, an
+// array or an object as the JSON it parses (TagIds=[1,2], Env=[{"name":…}]).
+func formValue(v any) (string, error) {
+	switch val := v.(type) {
+	case nil:
+		return "", nil
+	case string:
+		return val, nil
+	case float64, bool:
+		return fmt.Sprint(val), nil
+	default:
+		raw, err := json.Marshal(val)
+		if err != nil {
+			return "", err
+		}
+		return string(raw), nil
 	}
 }
 
@@ -114,15 +185,26 @@ const arrayPage = 50
 // stays open until the client times out, and the model learns nothing from
 // waiting. The flags come from the catalog, not from a list kept here.
 func unbounded(t catalog.Tool, args map[string]any) error {
+	// until is a timestamp: Docker accepts both RFC3339 and epoch seconds, and
+	// the catalog types it as an integer for most operations.
+	if v, ok := args["until"]; ok {
+		switch v := v.(type) {
+		case string:
+			if v != "" {
+				return nil
+			}
+		case float64:
+			if v > 0 {
+				return nil
+			}
+		}
+	}
 	for _, name := range t.StreamingParams {
 		if v, ok := args[name].(bool); ok && v {
 			return fmt.Errorf("this operation streams while %s=true and would not return until the client times out: pass %s=false, or bound the window with until", name, name)
 		}
 	}
 	if !t.StreamingPath {
-		return nil
-	}
-	if until, ok := args["until"].(string); ok && until != "" {
 		return nil
 	}
 	return errors.New("this operation streams and does not return on its own: set until to bound the window, or use a list or log tool instead")

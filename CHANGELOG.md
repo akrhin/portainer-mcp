@@ -5,6 +5,26 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Multipart operations (endpoint creation, file-based stack creation, TLS
+  certificate upload and the other five) now work: the generator marks them
+  `form: true`, and a `body` value shaped `{filename, content}` or
+  `{filename, base64}` is sent as a file part.
+- `container_exec` runs the command it creates and returns what it printed,
+  demultiplexing stdout and stderr when the exec has no TTY.
+
+### Fixed
+
+- The `until` bound of a streaming operation accepts epoch seconds, not only a
+  timestamp string, so the refusal the tool prints can actually be acted on.
+- `k8s_raw` appends its path to `/api/endpoints/{environment}/kubernetes`, the
+  route Portainer answers on.
+- Raw tools send their `body` and pass `metadata.managedFields` through unchanged
+  (116 tools strip it).
+
 ## [0.1.0] - 2026-11-16
 
 ### Added
@@ -24,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   whatever the arguments are. A call that would stay open until the client times
   out is refused before the request, with the reason and the way to bound it.
 - `strip_managed_fields` in the catalog: the tools whose path lies under the
-  Kubernetes API (117 of them) drop `metadata.managedFields` at every depth, so a
+  Kubernetes API (116 of them) drop `metadata.managedFields` at every depth, so a
   Kubernetes list no longer arrives several times larger than it is.
 - An array answer cut at 1 MiB arrives as a page — the first 50 elements plus
   `_truncated`, `_total` and a `_hint` naming the tool to narrow the list with —

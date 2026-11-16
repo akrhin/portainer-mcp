@@ -25,20 +25,30 @@ func main() {
 }
 
 type mapping struct {
-	Version      int                          `yaml:"version"`
-	Toolsets     []string                     `yaml:"toolsets"`
-	Tags         map[string]map[string]string `yaml:"tags"`
-	Overrides    map[string]string            `yaml:"operation_toolsets"`
-	SkipTags     []string                     `yaml:"skip_tags"`
-	SkipPaths    []string                     `yaml:"skip_paths"`
-	Aliases      map[string]string            `yaml:"word_aliases"`
-	Rewrites     map[string]string            `yaml:"rewrites"`
-	Unnamed      map[string]string            `yaml:"unnamed"`
-	Renames      map[string]string            `yaml:"param_renames"`
-	Extras       []extra                      `yaml:"extras"`
-	StreamParams []string                     `yaml:"streaming_params"`
-	StreamPaths  []string                     `yaml:"streaming_paths"`
-	StripPaths   []string                     `yaml:"strip_managed_fields_paths"`
+	Version       int                          `yaml:"version"`
+	Toolsets      []string                     `yaml:"toolsets"`
+	Tags          map[string]map[string]string `yaml:"tags"`
+	Overrides     map[string]string            `yaml:"operation_toolsets"`
+	SkipTags      []string                     `yaml:"skip_tags"`
+	SkipPaths     []string                     `yaml:"skip_paths"`
+	Aliases       map[string]string            `yaml:"word_aliases"`
+	Rewrites      map[string]string            `yaml:"rewrites"`
+	Unnamed       map[string]string            `yaml:"unnamed"`
+	Renames       map[string]string            `yaml:"param_renames"`
+	Extras        []extra                      `yaml:"extras"`
+	StreamParams  []string                     `yaml:"streaming_params"`
+	StreamPaths   []string                     `yaml:"streaming_paths"`
+	StripPaths    []string                     `yaml:"strip_managed_fields_paths"`
+	ToolOverrides map[string]toolOverride      `yaml:"tool_overrides"`
+}
+
+// toolOverride replaces what the derived annotation and the spec text say about
+// one tool. It exists for a hand-implemented tool whose behaviour the document
+// describes imprecisely.
+type toolOverride struct {
+	Description string `yaml:"description"`
+	ReadOnly    *bool  `yaml:"read_only"`
+	Destructive *bool  `yaml:"destructive"`
 }
 
 type extra struct {
@@ -80,6 +90,7 @@ type operation struct {
 	body        bool
 	bodyReq     bool
 	bodyDesc    string
+	form        bool // the body is multipart/form-data only
 	resp        map[string]any
 }
 
@@ -405,6 +416,7 @@ func parseOp(m mapping, sp *spec, method, path string, raw map[string]any, itemP
 		op.body = true
 		op.bodyReq = boolVal(rb["required"])
 		op.bodyDesc = str(rb["description"])
+		op.form = formOnly(rb)
 	}
 
 	if resp, ok := raw["responses"].(map[string]any); ok {
@@ -434,6 +446,18 @@ func resolve(sp *spec, m map[string]any) map[string]any {
 		return out
 	}
 	return m
+}
+
+// formOnly reports whether a request body accepts multipart/form-data and no
+// JSON at all. Such an operation cannot be called with a JSON body: Portainer
+// parses the fields of the form and sees an empty request otherwise.
+func formOnly(rb map[string]any) bool {
+	content, _ := rb["content"].(map[string]any)
+	if _, ok := content["application/json"]; ok {
+		return false
+	}
+	_, form := content["multipart/form-data"]
+	return form
 }
 
 // response200 returns the 200 response body schema, if any.
@@ -496,6 +520,9 @@ func buildTool(m mapping, op *operation, toolset, name string) catalog.Tool {
 	}
 	if op.body {
 		desc := op.bodyDesc
+		if op.form && desc == "" {
+			desc = "Form fields, sent as multipart/form-data. A value {filename, content} or {filename, base64} is sent as a file part."
+		}
 		if desc == "" {
 			desc = "JSON request body, passed to the API unchanged."
 		}
@@ -544,9 +571,27 @@ func buildTool(m mapping, op *operation, toolset, name string) catalog.Tool {
 	}
 	if op.body {
 		tool.Operation.Body = "body"
+		tool.Operation.Form = op.form
+	}
+	if op.form {
+		// The note stays whole: a cut description must not lose the one fact
+		// the caller needs to build the call.
+		const note = " The body is sent as multipart/form-data."
+		tool.Description = clip(tool.Description, 400-len(note)) + note
 	}
 	if out := outputSchema(op.resp); out != nil {
 		tool.Output = out
+	}
+	if ov, ok := m.ToolOverrides[name]; ok {
+		if ov.Description != "" {
+			tool.Description = clip(ov.Description, 400)
+		}
+		if ov.ReadOnly != nil {
+			tool.Annotations.ReadOnlyHint = ov.ReadOnly
+		}
+		if ov.Destructive != nil {
+			tool.Annotations.DestructiveHint = ov.Destructive
+		}
 	}
 	return tool
 }
@@ -599,7 +644,7 @@ func extraTool(m mapping, ex extra) (catalog.Tool, error) {
 			"required":             required,
 			"additionalProperties": false,
 		},
-		Operation: catalog.Operation{Path: ex.Base, Raw: true},
+		Operation: catalog.Operation{Path: ex.Base, Raw: true, Body: "body"},
 	}, nil
 }
 

@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -29,22 +32,63 @@ type Response struct {
 // Do performs one request against the instance. Path is the already expanded
 // API path; query is encoded as given; body is sent as JSON when not nil.
 func (c *Client) Do(ctx context.Context, method, path string, query url.Values, body []byte) (*Response, error) {
+	var reader io.Reader
+	contentType := ""
+	if body != nil {
+		reader = bytes.NewReader(body)
+		contentType = "application/json"
+	}
+	return c.roundTrip(ctx, method, path, query, contentType, reader)
+}
+
+// FilePart is one file of a multipart form body.
+type FilePart struct {
+	Filename string
+	Content  []byte
+}
+
+// DoForm performs one request whose body is a multipart form: fields travel as
+// text parts, files as file parts. Portainer parses some operations only from
+// the form, so a JSON body reaches them empty and is rejected.
+func (c *Client) DoForm(ctx context.Context, method, path string, query url.Values, fields map[string]string, files map[string]FilePart) (*Response, error) {
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for _, name := range slices.Sorted(maps.Keys(fields)) {
+		if err := w.WriteField(name, fields[name]); err != nil {
+			return nil, fmt.Errorf("%s %s: form field %q: %w", method, path, name, err)
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(files)) {
+		f := files[name]
+		part, err := w.CreateFormFile(name, f.Filename)
+		if err != nil {
+			return nil, fmt.Errorf("%s %s: form file %q: %w", method, path, name, err)
+		}
+		if _, err := part.Write(f.Content); err != nil {
+			return nil, fmt.Errorf("%s %s: form file %q: %w", method, path, name, err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		return nil, fmt.Errorf("%s %s: close form: %w", method, path, err)
+	}
+	return c.roundTrip(ctx, method, path, query, w.FormDataContentType(), &buf)
+}
+
+// roundTrip is the one place that sends and reads a request: auth header,
+// status mapping and the MaxResponse cut are the same for every body kind.
+func (c *Client) roundTrip(ctx context.Context, method, path string, query url.Values, contentType string, body io.Reader) (*Response, error) {
 	target := c.base + path
 	if len(query) > 0 {
 		target += "?" + query.Encode()
 	}
-	var reader io.Reader
-	if body != nil {
-		reader = bytes.NewReader(body)
-	}
-	req, err := http.NewRequestWithContext(ctx, method, target, reader)
+	req, err := http.NewRequestWithContext(ctx, method, target, body)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", method, path, err)
 	}
 	req.Header.Set("X-API-KEY", c.apiKey)
 	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 
 	resp, err := c.http.Do(req)

@@ -160,10 +160,15 @@ return what happened in it.
 
 `portainer_raw`, `docker_raw`, `k8s_raw` — one arbitrary request per target, with the
 method, path, query and JSON body chosen by the caller. The path is appended to
-`/api`, `/api/endpoints/{environment}/docker` or `/api/kubernetes/{environment}`;
+`/api`, `/api/endpoints/{environment}/docker` or
+`/api/endpoints/{environment}/kubernetes`;
 `docker_raw` and `k8s_raw` require `environment`. All three are annotated as writes,
 because a raw request may change anything, and none is pulled in as a dependency.
 Enabling `raw` is an explicit decision by the operator.
+
+Multipart operations are marked `form: true` by the generator. Their `body` is sent
+as `multipart/form-data`, and a value shaped `{filename, content}` or
+`{filename, base64}` becomes a file part; every other key becomes a text field.
 
 ## Streaming operations
 
@@ -181,7 +186,7 @@ catalog marks.
 ## Kubernetes metadata
 
 Kubernetes answers repeat `metadata.managedFields` in every object, and it is most of
-their volume. The 117 tools whose operation path contains `/kubernetes/` are marked
+their volume. The 116 tools whose operation path contains `/kubernetes/` are marked
 `strip_managed_fields: true` by the generator; before the answer reaches the model,
 the field is removed at every depth. Tools outside that path, including `k8s_raw`,
 keep the answer as it arrived.
@@ -219,3 +224,8 @@ go test ./tools/cataloggen
 
 `TestBuildMatchesCommittedFile` fails when the committed file drifts from a fresh
 run, so the diff is the review surface.
+
+`tool_overrides` in the same file sets the `description` and the read/write hints of a
+tool the generator cannot annotate correctly. It covers `container_exec`, the one tool
+that needs two requests: it creates the exec, starts it, and returns what the command
+printed instead of the bare exec id.

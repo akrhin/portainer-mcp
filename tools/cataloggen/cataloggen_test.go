@@ -109,8 +109,8 @@ func TestResponseFlags(t *testing.T) {
 	if params != 4 || paths != 3 {
 		t.Fatalf("streaming tools = %d by parameter, %d by path, want 4 and 3", params, paths)
 	}
-	if strips != 117 {
-		t.Fatalf("tools that strip managedFields = %d, want 117", strips)
+	if strips != 116 {
+		t.Fatalf("tools that strip managedFields = %d, want 116", strips)
 	}
 	want := map[string]string{
 		"container_logs":       "streams while follow=true",
@@ -120,7 +120,7 @@ func TestResponseFlags(t *testing.T) {
 		"container_attach":     "streams on the path",
 		"exec_start":           "streams on the path",
 		"kubernetes_pods_list": " strip",
-		"k8s_raw":              " strip",
+		"k8s_raw":              "",
 	}
 	for name, mark := range want {
 		if got := marks[name]; got != mark {

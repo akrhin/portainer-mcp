@@ -43,13 +43,43 @@ func New(cfg *config.Config, cat *catalog.Catalog, opts Options) (*mcp.Server, e
 	srv := mcp.NewServer(&mcp.Implementation{Name: "portainer-mcp", Version: Version}, nil)
 	registered := 0
 	for _, tool := range selectTools(cat, enabled, readOnly, exhaustive) {
-		srv.AddTool(toTool(tool), adapt(env.call(tool)))
+		h, err := handlerFor(env, cat, tool)
+		if err != nil {
+			return nil, err
+		}
+		srv.AddTool(toTool(tool), adapt(h))
 		registered++
 	}
 	if registered == 0 {
 		return nil, fmt.Errorf("no tools selected for toolsets %s", strings.Join(enabled, ", "))
 	}
 	return srv, nil
+}
+
+// handlerFor picks the implementation behind a catalog tool. Every tool is one
+// request described by the catalog except the exec tool, which creates the exec
+// instance and starts it, so it takes its own handler and reads the second
+// operation's path from the catalog entry that declares it.
+func handlerFor(e *env, cat *catalog.Catalog, t catalog.Tool) (handler, error) {
+	if t.Name != "container_exec" {
+		return e.call(t), nil
+	}
+	start, ok := findTool(cat, "exec_start")
+	if !ok {
+		return nil, fmt.Errorf("container_exec needs the exec_start operation in the catalog")
+	}
+	return e.containerExec(t, start.Operation.Path), nil
+}
+
+func findTool(cat *catalog.Catalog, name string) (catalog.Tool, bool) {
+	for _, ts := range cat.Toolsets {
+		for _, t := range ts.Tools {
+			if t.Name == name {
+				return t, true
+			}
+		}
+	}
+	return catalog.Tool{}, false
 }
 
 // selectTools flattens the enabled toolsets. Without exhaustive it keeps the

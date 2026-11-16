@@ -60,8 +60,11 @@ type Tool struct {
 type Operation struct {
 	Method string `yaml:"method"`
 	Path   string `yaml:"path"`
-	// Body names the input property holding the JSON request body.
+	// Body names the input property holding the request body.
 	Body string `yaml:"body,omitempty"`
+	// Form sends Body as multipart/form-data instead of JSON: a property that
+	// is an object with a filename becomes a file part, the rest become text.
+	Form bool `yaml:"form,omitempty"`
 	// CSV lists query parameters encoded as one comma-joined value.
 	CSV []string `yaml:"csv,omitempty"`
 	// Raw tools take method and path from their arguments and append the path
@@ -207,6 +210,9 @@ func (c *Catalog) Validate() error {
 			}
 			if !strings.HasPrefix(t.Operation.Path, "/") {
 				return fmt.Errorf("catalog: tool %q: operation.path must start with /", t.Name)
+			}
+			if t.Operation.Form && t.Operation.Body == "" {
+				return fmt.Errorf("catalog: tool %q: operation.form needs operation.body to name the form object", t.Name)
 			}
 		}
 	}

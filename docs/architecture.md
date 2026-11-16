@@ -120,7 +120,7 @@ unknown name produces `unknown instance "x" (configured: ...)`.
   (`system_events`, `container_attach`, `exec_start`). A call that would stay open is
   refused before anything is sent, with a message that names the bound to set:
   `follow=false` or `until`.
-- **Kubernetes metadata.** The 117 tools whose operation path contains `/kubernetes/`
+- **Kubernetes metadata.** The 116 tools whose operation path contains `/kubernetes/`
   carry `strip_managed_fields: true`; `metadata.managedFields` is removed at every
   depth before the answer is serialized.
 - **Size cap.** A response body is cut at 1 MiB (`MaxResponse` in

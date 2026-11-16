@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -127,6 +128,80 @@ func TestDoNonJSONAnswer(t *testing.T) {
 	}
 	if resp.JSON() || string(resp.Body) != "tar bytes" {
 		t.Fatalf("response = %+v", resp)
+	}
+}
+
+// TestDoForm sends a multipart body: text fields as text parts, files as file
+// parts, and the auth header and status mapping of Do still apply.
+func TestDoForm(t *testing.T) {
+	var values map[string]string
+	var filename, content string
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/stacks/create/standalone/file" {
+			t.Errorf("request = %s %s", r.Method, r.URL.Path)
+		}
+		if r.URL.Query().Get("endpointId") != "7" {
+			t.Errorf("query = %s", r.URL.RawQuery)
+		}
+		if r.Header.Get("X-API-KEY") != "test-key" {
+			t.Errorf("X-API-KEY = %q", r.Header.Get("X-API-KEY"))
+		}
+		if ct := r.Header.Get("Content-Type"); !strings.HasPrefix(ct, "multipart/form-data; boundary=") {
+			t.Errorf("Content-Type = %q", ct)
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Errorf("ParseMultipartForm: %v", err)
+			return
+		}
+		values = map[string]string{}
+		for name, v := range r.MultipartForm.Value {
+			values[name] = v[0]
+		}
+		f, hdr, err := r.FormFile("file")
+		if err != nil {
+			t.Errorf("file part: %v", err)
+			return
+		}
+		defer f.Close()
+		raw, _ := io.ReadAll(f)
+		filename, content = hdr.Filename, string(raw)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"Id":1}`))
+	})
+
+	query := url.Values{}
+	AddQuery(query, "endpointId", float64(7), false)
+	resp, err := c.DoForm(context.Background(), http.MethodPost, "/api/stacks/create/standalone/file", query,
+		map[string]string{"Name": "web", "TagIds": "[1,2]"},
+		map[string]FilePart{"file": {Filename: "stack.yml", Content: []byte("services: {}\n")}})
+	if err != nil {
+		t.Fatalf("DoForm: %v", err)
+	}
+	if resp.Status != 200 || string(resp.Body) != `{"Id":1}` {
+		t.Fatalf("response = %+v", resp)
+	}
+	if values["Name"] != "web" || values["TagIds"] != "[1,2]" {
+		t.Fatalf("fields = %v", values)
+	}
+	if filename != "stack.yml" || content != "services: {}\n" {
+		t.Fatalf("file part = %q %q", filename, content)
+	}
+}
+
+// TestDoFormError keeps the status mapping: a rejected form is an APIError like
+// any other call.
+func TestDoFormError(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"message":"Invalid stack name"}`))
+	})
+	_, err := c.DoForm(context.Background(), http.MethodPost, "/api/stacks/create/standalone/file", nil, nil, nil)
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusBadRequest {
+		t.Fatalf("error = %v", err)
+	}
+	if !strings.Contains(err.Error(), "Invalid stack name") {
+		t.Fatalf("error text = %v", err)
 	}
 }
 

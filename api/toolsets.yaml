@@ -133,6 +133,14 @@ unnamed:
 param_renames:
   environmentId: environment
 
+# What a hand-implemented tool does that the document does not say. Sets the
+# description and the hints; the operation and the input schema stay derived.
+tool_overrides:
+  container_exec:
+    description: Run a command in a running container and return its output.
+    read_only: false
+    destructive: false
+
 # Tools with no single operation behind them: an escape hatch to a path the
 # catalog does not expose. They are declared rather than derived.
 extras:
@@ -146,5 +154,5 @@ extras:
     base: /api/endpoints/{environment}/docker
   - name: k8s_raw
     toolset: raw
-    description: Call any Portainer Kubernetes API path (method, path, query, JSON body). Use it only for an operation that no other tool covers; the path is appended to /api/kubernetes/{environment}.
-    base: /api/kubernetes/{environment}
+    description: Call any Portainer Kubernetes API path (method, path, query, JSON body). Use it only for an operation that no other tool covers; the path is appended to /api/endpoints/{environment}/kubernetes.
+    base: /api/endpoints/{environment}/kubernetes

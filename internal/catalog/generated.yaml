@@ -27,7 +27,7 @@ toolsets:
             method: PUT
             path: /api/endpoints/{id}/association
         - name: endpoint_create
-          description: 'Create a new environment(endpoint) Create a new environment(endpoint) that will be used to manage an environment(endpoint). **Access policy**: administrator'
+          description: 'Create a new environment(endpoint) Create a new environment(endpoint) that will be used to manage an environment(endpoint). **Access policy**: administrator The body is sent as multipart/form-data.'
           annotations:
             readOnlyHint: false
             destructiveHint: true
@@ -37,7 +37,7 @@ toolsets:
             properties:
                 body:
                     additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
+                    description: Form fields, sent as multipart/form-data. A value {filename, content} or {filename, base64} is sent as a file part.
                     type: object
                 instance:
                     description: Name of a configured Portainer instance; defaults to the first one.
@@ -52,6 +52,7 @@ toolsets:
             method: POST
             path: /api/endpoints
             body: body
+            form: true
         - name: endpoint_create_global_key
           description: Create or retrieve the endpoint for an EdgeID
           annotations:
@@ -132,7 +133,7 @@ toolsets:
             path: /api/endpoints
             body: body
         - name: endpoint_docker_browse_put
-          description: 'Upload a file under a specific path on the file system of an environment (endpoint) Use this environment(endpoint) to upload TLS files. **Access policy**: administrator'
+          description: 'Upload a file under a specific path on the file system of an environment (endpoint) Use this environment(endpoint) to upload TLS files. **Access policy**: administrator The body is sent as multipart/form-data.'
           annotations:
             readOnlyHint: false
             destructiveHint: true
@@ -142,7 +143,7 @@ toolsets:
             properties:
                 body:
                     additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
+                    description: Form fields, sent as multipart/form-data. A value {filename, content} or {filename, base64} is sent as a file part.
                     type: object
                 id:
                     description: Environment(Endpoint) identifier
@@ -161,6 +162,7 @@ toolsets:
             method: POST
             path: /api/endpoints/{id}/docker/v2/browse/put
             body: body
+            form: true
         - name: endpoint_dockerhub_status
           description: 'fetch docker pull limits get docker pull limits for a docker hub registry in the environment **Access policy**:'
           annotations:
@@ -1120,10 +1122,10 @@ toolsets:
             path: /api/endpoints/{environment}/docker/containers/{id}
           default: true
         - name: container_exec
-          description: Create an exec instance Run a command inside a running container.
+          description: Run a command in a running container and return its output.
           annotations:
             readOnlyHint: false
-            destructiveHint: true
+            destructiveHint: false
             openWorldHint: false
           input:
             additionalProperties: false
@@ -8347,7 +8349,7 @@ toolsets:
     - name: stacks
       tools:
         - name: custom_template_create_file
-          description: 'Create a custom template Create a custom template. **Access policy**: authenticated'
+          description: 'Create a custom template Create a custom template. **Access policy**: authenticated The body is sent as multipart/form-data.'
           annotations:
             readOnlyHint: false
             destructiveHint: true
@@ -8357,7 +8359,7 @@ toolsets:
             properties:
                 body:
                     additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
+                    description: Form fields, sent as multipart/form-data. A value {filename, content} or {filename, base64} is sent as a file part.
                     type: object
                 instance:
                     description: Name of a configured Portainer instance; defaults to the first one.
@@ -8372,6 +8374,7 @@ toolsets:
             method: POST
             path: /api/custom_templates/create/file
             body: body
+            form: true
         - name: custom_template_create_repository
           description: 'Create a custom template Create a custom template. **Access policy**: authenticated'
           annotations:
@@ -8624,7 +8627,7 @@ toolsets:
             method: PUT
             path: /api/stacks/{id}/associate
         - name: stack_create_docker_standalone_file
-          description: 'Deploy a new compose stack from a file Deploy a new stack into a Docker environment specified via the environment identifier. **Access policy**: authenticated'
+          description: 'Deploy a new compose stack from a file Deploy a new stack into a Docker environment specified via the environment identifier. **Access policy**: authenticated The body is sent as multipart/form-data.'
           annotations:
             readOnlyHint: false
             destructiveHint: true
@@ -8634,7 +8637,7 @@ toolsets:
             properties:
                 body:
                     additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
+                    description: Form fields, sent as multipart/form-data. A value {filename, content} or {filename, base64} is sent as a file part.
                     type: object
                 endpointId:
                     description: Identifier of the environment that will be used to deploy the stack
@@ -8653,6 +8656,7 @@ toolsets:
             method: POST
             path: /api/stacks/create/standalone/file
             body: body
+            form: true
           default: true
         - name: stack_create_docker_standalone_repository
           description: 'Deploy a new compose stack from repository Deploy a new stack into a Docker environment specified via the environment identifier. **Access policy**: authenticated'
@@ -8717,7 +8721,7 @@ toolsets:
             body: body
           default: true
         - name: stack_create_docker_swarm_file
-          description: 'Deploy a new swarm stack from a file Deploy a new stack into a Docker environment specified via the environment identifier. **Access policy**: authenticated'
+          description: 'Deploy a new swarm stack from a file Deploy a new stack into a Docker environment specified via the environment identifier. **Access policy**: authenticated The body is sent as multipart/form-data.'
           annotations:
             readOnlyHint: false
             destructiveHint: true
@@ -8727,7 +8731,7 @@ toolsets:
             properties:
                 body:
                     additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
+                    description: Form fields, sent as multipart/form-data. A value {filename, content} or {filename, base64} is sent as a file part.
                     type: object
                 endpointId:
                     description: Identifier of the environment that will be used to deploy the stack
@@ -8745,6 +8749,7 @@ toolsets:
             method: POST
             path: /api/stacks/create/swarm/file
             body: body
+            form: true
         - name: stack_create_docker_swarm_repository
           description: 'Deploy a new swarm stack from a git repository Deploy a new stack into a Docker environment specified via the environment identifier. **Access policy**: authenticated'
           annotations:
@@ -9906,7 +9911,7 @@ toolsets:
             path: /api/edge_groups/{id}
             body: body
         - name: edge_job_create_file
-          description: 'Create an EdgeJob from a file **Access policy**: administrator'
+          description: 'Create an EdgeJob from a file **Access policy**: administrator The body is sent as multipart/form-data.'
           annotations:
             readOnlyHint: false
             destructiveHint: true
@@ -9916,7 +9921,7 @@ toolsets:
             properties:
                 body:
                     additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
+                    description: Form fields, sent as multipart/form-data. A value {filename, content} or {filename, base64} is sent as a file part.
                     type: object
                 instance:
                     description: Name of a configured Portainer instance; defaults to the first one.
@@ -9931,6 +9936,7 @@ toolsets:
             method: POST
             path: /api/edge_jobs/create/file
             body: body
+            form: true
         - name: edge_job_create_string
           description: 'Create an EdgeJob from a text **Access policy**: administrator'
           annotations:
@@ -10211,7 +10217,7 @@ toolsets:
             path: /api/edge_jobs/{id}
             body: body
         - name: edge_stack_create_file
-          description: 'Create an EdgeStack from file **Access policy**: administrator'
+          description: 'Create an EdgeStack from file **Access policy**: administrator The body is sent as multipart/form-data.'
           annotations:
             readOnlyHint: false
             destructiveHint: true
@@ -10221,7 +10227,7 @@ toolsets:
             properties:
                 body:
                     additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
+                    description: Form fields, sent as multipart/form-data. A value {filename, content} or {filename, base64} is sent as a file part.
                     type: object
                 dryrun:
                     description: if true, will not create an edge stack, but just will check the settings and return a non-persisted edge stack object
@@ -10239,6 +10245,7 @@ toolsets:
             method: POST
             path: /api/edge_stacks/create/file
             body: body
+            form: true
         - name: edge_stack_create_repository
           description: 'Create an EdgeStack from a git repository **Access policy**: administrator'
           annotations:
@@ -11488,7 +11495,7 @@ toolsets:
             method: GET
             path: /api/templates
         - name: tls_upload
-          description: 'Upload TLS files Use this environment(endpoint) to upload TLS files. **Access policy**: administrator'
+          description: 'Upload TLS files Use this environment(endpoint) to upload TLS files. **Access policy**: administrator The body is sent as multipart/form-data.'
           annotations:
             readOnlyHint: false
             destructiveHint: true
@@ -11498,7 +11505,7 @@ toolsets:
             properties:
                 body:
                     additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
+                    description: Form fields, sent as multipart/form-data. A value {filename, content} or {filename, base64} is sent as a file part.
                     type: object
                 certificate:
                     description: TLS file type. Valid values are 'ca', 'cert' or 'key'.
@@ -11518,6 +11525,7 @@ toolsets:
             method: POST
             path: /api/upload/tls/{certificate}
             body: body
+            form: true
         - name: user_admin_check
           description: 'Check administrator account existence Check if an administrator account exists in the database. **Access policy**: public'
           annotations:
@@ -12059,10 +12067,11 @@ toolsets:
           operation:
             method: ""
             path: /api/endpoints/{environment}/docker
+            body: body
             raw: true
           default: true
         - name: k8s_raw
-          description: Call any Portainer Kubernetes API path (method, path, query, JSON body). Use it only for an operation that no other tool covers; the path is appended to /api/kubernetes/{environment}.
+          description: Call any Portainer Kubernetes API path (method, path, query, JSON body). Use it only for an operation that no other tool covers; the path is appended to /api/endpoints/{environment}/kubernetes.
           annotations:
             readOnlyHint: false
             destructiveHint: true
@@ -12090,7 +12099,7 @@ toolsets:
                         - DELETE
                     type: string
                 path:
-                    description: API path, starting with /, appended to /api/kubernetes/{environment}.
+                    description: API path, starting with /, appended to /api/endpoints/{environment}/kubernetes.
                     type: string
                 query:
                     additionalProperties: true
@@ -12103,9 +12112,9 @@ toolsets:
             type: object
           operation:
             method: ""
-            path: /api/kubernetes/{environment}
+            path: /api/endpoints/{environment}/kubernetes
+            body: body
             raw: true
-          strip_managed_fields: true
           default: true
         - name: portainer_raw
           description: Call any Portainer API path directly (method, path, query, JSON body). Use it only for an operation that no other tool covers; the path must start with / and is appended to /api.
@@ -12146,5 +12155,6 @@ toolsets:
           operation:
             method: ""
             path: /api
+            body: body
             raw: true
           default: true

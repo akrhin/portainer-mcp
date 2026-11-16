@@ -91,12 +91,12 @@
   },
   {
     "annotations": {
-      "destructiveHint": true,
+      "destructiveHint": false,
       "idempotentHint": false,
       "openWorldHint": false,
       "readOnlyHint": false
     },
-    "description": "Create an exec instance Run a command inside a running container.",
+    "description": "Run a command in a running container and return its output.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
