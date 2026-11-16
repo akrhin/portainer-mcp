@@ -168,7 +168,7 @@ func execOnce(ctx context.Context, c *portainer.Client, agent, container, comman
 	if err != nil {
 		return execResult{}, err
 	}
-	defer conn.CloseNow() // the session must not outlive the call, on any path
+	defer func() { _ = conn.CloseNow() }() // the session must not outlive the call, on any path
 
 	writeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()

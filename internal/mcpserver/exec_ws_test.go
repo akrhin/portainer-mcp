@@ -28,7 +28,7 @@ func execStub(t *testing.T, serve func(conn *websocket.Conn, r *http.Request)) (
 			t.Errorf("accept: %v", err)
 			return
 		}
-		defer conn.CloseNow()
+		defer func() { _ = conn.CloseNow() }()
 		serve(conn, r)
 	}))
 	t.Cleanup(srv.Close)
