@@ -1,0 +1,84 @@
+# Operations the Arcane server registers without --exhaustive, one per line.
+# An entry is a tool name, a source/operationId pair or a bare operationId.
+#
+# The set answers the questions a first session asks: which agents exist, what
+# runs on them, what is deployed, what is out of date, and what was backed up.
+version: 1
+
+tools:
+  # core
+  - listEnvironments
+  - getEnvironment
+  - getVersion
+  - health-check
+  - get-docker-info
+  - df
+  - listEvents
+  - getEventStats
+
+  # containers
+  - list-containers
+  - get-container
+  - container-action
+  - delete-container
+  - download-container-logs
+  - get-container-processes
+  - redeploy-container
+  - container-status-counts
+
+  # images
+  - list-images
+  - get-image
+  - pull-image
+  - remove-image
+  - get-update-summary
+  - prune-images
+
+  # projects
+  - list-projects
+  - get-project
+  - deploy-project
+  - project-action
+  - get-project-compose
+  - get-project-updates
+
+  # networks
+  - list-networks
+  - get-network
+  - get-network-topology
+
+  # volumes
+  - list-volumes
+  - get-volume
+  - get-volume-usage
+
+  # backups
+  - list-system-backups
+  - create-system-backup
+  - list-s3-destinations
+
+  # gitops
+  - listGitOpsSyncs
+  - getGitOpsSync
+  - getGitOpsSyncStatus
+  - listGitRepositories
+
+  # swarm
+  - get-swarm-info
+  - list-swarm-nodes
+  - list-swarm-services
+  - list-swarm-stacks
+
+  # podman
+  - get-podman-info
+  - list-podman-pods
+
+  # security
+  - listUsers
+  - get-environment-vulnerability-summary
+  - list-environment-vulnerabilities
+  - get-vulnerability-scanner-status
+
+  # admin
+  - get-current-user
+  - get-settings

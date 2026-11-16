@@ -1,0 +1,56 @@
+# Toolset descriptions for the Arcane server. The tools themselves are in
+# generated.yaml, written by tools/cataloggen from api/arcane-3.1.yaml.
+version: 1
+
+toolsets:
+  - name: core
+    description: Arcane agents (environments), events, activities and server health.
+    depends_on: []
+
+  - name: containers
+    description: Docker containers on one agent, from listing to logs.
+    depends_on: [core]
+
+  - name: images
+    description: Images on one agent, registry pulls, update checks and registry credentials.
+    depends_on: [core]
+
+  - name: volumes
+    description: Docker volumes and their backup and workspace operations.
+    depends_on: [core]
+
+  - name: networks
+    description: Docker networks on one agent.
+    depends_on: [core]
+
+  - name: projects
+    description: Docker Compose projects, templates and variables.
+    depends_on: [core]
+
+  - name: backups
+    description: Arcane system backups and the S3 destinations they are written to.
+    depends_on: []
+
+  - name: gitops
+    description: Git repositories, GitOps syncs and webhooks.
+    depends_on: [core]
+
+  - name: swarm
+    description: Docker Swarm services, tasks, nodes and stacks on one agent.
+    depends_on: [core]
+
+  - name: podman
+    description: Podman containers, pods and images on one agent.
+    depends_on: [core]
+
+  - name: security
+    description: User accounts, roles, API keys and vulnerability scans.
+    depends_on: [core]
+
+  - name: admin
+    description: Authentication, settings, updaters, notifications and enrollment tokens.
+    depends_on: [core]
+
+  - name: raw
+    description: One tool that calls any Arcane path, for operations the catalog does not cover.
+    depends_on: []

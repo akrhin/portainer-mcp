@@ -20,6 +20,12 @@ var embeddedMeta []byte
 //go:embed generated.yaml
 var embeddedTools []byte
 
+//go:embed arcane/catalog.yaml
+var embeddedArcaneMeta []byte
+
+//go:embed arcane/generated.yaml
+var embeddedArcaneTools []byte
+
 // Catalog is the tool catalog as data.
 type Catalog struct {
 	Version  int       `yaml:"version"`
@@ -95,6 +101,11 @@ func (a Annotations) IsIdempotent() bool {
 // Load parses and validates the embedded catalog.
 func Load() (*Catalog, error) {
 	return Merge(embeddedMeta, embeddedTools)
+}
+
+// LoadArcane parses and validates the embedded Arcane catalog.
+func LoadArcane() (*Catalog, error) {
+	return Merge(embeddedArcaneMeta, embeddedArcaneTools)
 }
 
 // Merge attaches the generated tools to the curated toolset metadata.

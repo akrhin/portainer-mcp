@@ -1,0 +1,120 @@
+# Which Arcane tag becomes which toolset, and how operationIds turn into tool
+# names. Read by tools/cataloggen; api/toolsets.yaml does the same for Portainer.
+version: 1
+
+toolsets: [core, containers, images, volumes, networks, projects, backups, gitops, swarm, podman, security, admin, raw]
+
+# One entry per tag of the Arcane document. Tags not listed here reach no
+# toolset and stop the build, which is how a new Arcane tag gets noticed.
+tags:
+  arcane:
+    Activities: core
+    Diagnostics: core
+    Environments: core
+    Events: core
+    Health: core
+    System: core
+    Version: core
+
+    Containers: containers
+    Ports: containers
+
+    Application Images: images
+    Container Registries: images
+    Image Updates: images
+    Images: images
+
+    Volume Backup: volumes
+    Volume Workspace: volumes
+    Volumes: volumes
+
+    Networks: networks
+
+    Build Workspace: projects
+    Project Workspace: projects
+    Projects: projects
+    Templates: projects
+    Variables: projects
+
+    S3 Destinations: backups
+    System Backups: backups
+
+    Git Repositories: gitops
+    GitOps Syncs: gitops
+    Webhooks: gitops
+
+    Podman: podman
+    Swarm: swarm
+
+    API Keys: security
+    Federated Credentials: security
+    Roles: security
+    Users: security
+    Vulnerabilities: security
+
+    Auth: admin
+    Enrollment: admin
+    JobSchedules: admin
+    Notifications: admin
+    Settings: admin
+    Updater: admin
+
+# The three job-run operations carry no tag in the document.
+operation_toolsets:
+  get-job-run: admin
+  job-run-action: admin
+  list-job-runs: admin
+
+# Login factors, push notifications and file uploads are not part of a tool
+# server: they need a browser, a device or a multipart form a model does not
+# fill in. A tag is skipped even when it is not the operation's first one, so
+# the Auth operations that also carry Passkeys or MFA stay out too.
+skip_tags: [Stream, Uploads, Mobile Push, MFA, Passkeys, OIDC]
+
+# listGitOpsSyncs splits into list, git, ops, syncs; the alias keeps the word.
+word_aliases:
+  git_ops: gitops
+
+# Names the derivation gets wrong: an unknown verb, two operations on one path,
+# or two operations that would land on the same name.
+rewrites:
+  backup-has-path: volume_backup_path_exists
+  check-image-update: image_update_check
+  check-image-update-by-id: image_update_check_by_id
+  check-image-update-by-id-post: image_update_check_by_id_post
+  check-images: image_updates_check
+  create-or-update-notification-settings: notification_settings_update
+  create-system-backup: system_backup_create
+  create-volume-backup: volume_backup_create
+  delete-system-backup: system_backup_delete
+  delete-volume-backup: volume_backup_delete
+  df: disk_usage
+  get-container-edit-config: container_edit_config
+  get-current-user: current_user
+  get-image-vulnerabilities: image_vulnerabilities_list
+  get-update-info-by-refs: image_update_info_list
+  get-update-summary: image_update_summary
+  getVersion: server_version
+  list-all-s3-destinations: s3_destination_options_list
+  list-image-vulnerabilities: image_vulnerabilities_list_all
+  prune-all: system_prune
+  put-swarm-node-agent-binding: swarm_node_agent_binding_put
+  upload-system-backup: system_backup_upload
+  upload-volume-backup: volume_backup_upload
+
+# Two operations never return on their own: an event long-poll and the upgrade
+# progress feed. A tool that blocks is worse than a missing tool.
+skip_paths:
+  - /agents/{id}/events/changes
+  - /agents/{id}/system/upgrade/progress
+
+# HEAD answers no body, which makes it useless as a tool.
+skip_methods: [head]
+
+extras:
+  - name: arcane_raw
+    toolset: raw
+    base: /api
+    description: >-
+      Call any Arcane API path directly. Use it for an operation the catalog
+      does not cover yet; method, path, query and body are sent as given.
