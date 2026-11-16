@@ -1,3 +1,5 @@
+[![CI](https://github.com/akrhin/portainer-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/akrhin/portainer-mcp/actions/workflows/ci.yml) [![Security](https://github.com/akrhin/portainer-mcp/actions/workflows/security.yml/badge.svg)](https://github.com/akrhin/portainer-mcp/actions/workflows/security.yml) [![Release](https://img.shields.io/github/v/release/akrhin/portainer-mcp)](https://github.com/akrhin/portainer-mcp/releases/latest)
+
 [Documentation](docs/index.md) · [Русский](README.ru.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
 
 # portainer-mcp
@@ -145,12 +147,16 @@ explains the layout and the special handling of streaming and Kubernetes metadat
 Releases are cut from a `v*` tag. The workflow builds `linux`, `darwin` and `windows`
 archives for `amd64` and `arm64` with checksums and SBOMs, and publishes a multi-arch
 image to `ghcr.io/akrhin/portainer-mcp` (`:latest` and the version tag). The image is
-distroless and runs as a non-root user. No release has been tagged yet; until one is,
-build the image yourself:
+distroless and runs as a non-root user. `v0.1.0` is out, so the quickest start is
+the release archive or the image:
 
 ```sh
-docker build -t portainer-mcp .
+docker run -i --rm -e PORTAINER_API_KEY -v "$PWD/config.yaml:/config.yaml" \
+  ghcr.io/akrhin/portainer-mcp:v0.1.0 --config /config.yaml
+go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.1.0
 ```
+
+To build the image from the checkout instead, `docker build -t portainer-mcp .`.
 
 ## License
 

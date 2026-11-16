@@ -153,12 +153,8 @@ features, bug fixes, performance, refactoring and documentation; `chore`, `test`
 `ci`, `style`, `build` and merge commits are filtered out. This is why commit
 prefixes matter beyond tidiness.
 
-No release has been tagged yet, so neither binaries nor images exist. To build the
-image locally:
-
-```sh
-docker build -t portainer-mcp .
-```
+`v0.1.0` is tagged, so the release archives and the `ghcr.io/akrhin/portainer-mcp`
+image exist; build a local image with `docker build -t portainer-mcp .`.
 
 The image is built from `golang:1.27-alpine` and runs on
 `gcr.io/distroless/static:nonroot`. It has no `HEALTHCHECK`: over stdio the process

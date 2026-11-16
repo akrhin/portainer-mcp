@@ -153,12 +153,16 @@ PORTAINER_API_KEY=... ./portainer-mcp --config config.yaml
 Релизы выходят по тегу `v*`. Workflow собирает архивы для `linux`, `darwin` и
 `windows` на `amd64` и `arm64` с контрольными суммами и SBOM, а также публикует
 multi-arch образ в `ghcr.io/akrhin/portainer-mcp` (тег `:latest` и тег версии).
-Образ distroless и работает не от root. Ни одного релиза ещё не выпущено; пока тега
-нет, соберите образ сами:
+Образ distroless и работает не от root. Релиз `v0.1.0` вышел, поэтому быстрее всего
+взять архив релиза или образ:
 
 ```sh
-docker build -t portainer-mcp .
+docker run -i --rm -e PORTAINER_API_KEY -v "$PWD/config.yaml:/config.yaml" \
+  ghcr.io/akrhin/portainer-mcp:v0.1.0 --config /config.yaml
+go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.1.0
 ```
+
+Собрать образ из чекаута: `docker build -t portainer-mcp .`.
 
 ## Лицензия
 

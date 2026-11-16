@@ -5,9 +5,7 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-No release has been cut yet. Everything below is on `main` and not yet tagged.
-
-## [Unreleased]
+## [0.1.0] - 2026-11-16
 
 ### Added
 
@@ -78,3 +76,5 @@ No release has been cut yet. Everything below is on `main` and not yet tagged.
   (`/api/endpoints/{environment}/docker<path>`) with `environment` as a required
   argument; the server never opens a Docker socket itself. The docker-engine
   version prefix in the specification is deliberately not pinned.
+
+[0.1.0]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.1.0
