@@ -9,6 +9,9 @@ paths = [
   '''^testdata/''',
   '''^docs/.*\.md$''',
   '''_test\.go$''',
+  # Vendored upstream OpenAPI specs carry dummy tokens and keys in their
+  # examples; they are inputs to cataloggen, not code we deploy.
+  '''^api/.*\.yaml$''',
 ]
 
 [[allowlists]]
