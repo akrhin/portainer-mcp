@@ -1,0 +1,24 @@
+name: Package visibility
+
+# A package pushed by GITHUB_TOKEN starts private even in a public repository, and
+# an anonymous `docker pull` needs it public. This flips it after every release and
+# can be run by hand when an older tag left the package closed.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  open:
+    name: make the image public
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: patch the container package
+        run: gh api -X PATCH "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/portainer-mcp" -f visibility=public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
