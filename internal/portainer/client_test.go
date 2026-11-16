@@ -16,7 +16,7 @@ func TestClientSendsAPIKey(t *testing.T) {
 		gotPath = r.URL.Path
 		gotKey = r.Header.Get("X-API-KEY")
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"Status":"up"}`)
+		_, _ = io.WriteString(w, `{"Status":"up"}`)
 	}))
 	defer srv.Close()
 
@@ -42,7 +42,7 @@ func TestClientSendsAPIKey(t *testing.T) {
 func TestClientParses401(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		io.WriteString(w, `{"message":"Unauthorized","details":"invalid api key"}`)
+		_, _ = io.WriteString(w, `{"message":"Unauthorized","details":"invalid api key"}`)
 	}))
 	defer srv.Close()
 
@@ -71,7 +71,7 @@ func TestClientParses401(t *testing.T) {
 
 func TestEndpointsDecode(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, `[{"Id":16,"Name":"local","Type":1,"Status":1,"URL":"unix:///var/run/docker.sock"}]`)
+		_, _ = io.WriteString(w, `[{"Id":16,"Name":"local","Type":1,"Status":1,"URL":"unix:///var/run/docker.sock"}]`)
 	}))
 	defer srv.Close()
 
