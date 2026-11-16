@@ -24,12 +24,6 @@ type Options struct {
 	Exhaustive bool
 }
 
-// implemented lists toolsets that have handlers. A set declared in the catalog
-// but missing here fails the startup instead of registering a dead tool.
-var implemented = map[string]bool{
-	"core": true,
-}
-
 // New builds the MCP server for the selected toolsets.
 func New(cfg *config.Config, cat *catalog.Catalog, opts Options) (*mcp.Server, error) {
 	enabled := cfg.Toolsets
@@ -37,16 +31,9 @@ func New(cfg *config.Config, cat *catalog.Catalog, opts Options) (*mcp.Server, e
 		enabled = opts.Toolsets
 	}
 	readOnly := cfg.Server.ReadOnly || opts.ReadOnly
-	if opts.Exhaustive || cfg.Server.Exhaustive {
-		return nil, fmt.Errorf("exhaustive catalog requires generated client (stage 1)")
-	}
+	exhaustive := cfg.Server.Exhaustive || opts.Exhaustive
 	if err := cat.CheckToolsets(enabled); err != nil {
 		return nil, err
-	}
-	for _, name := range enabled {
-		if !implemented[name] {
-			return nil, fmt.Errorf("toolset %q not implemented yet (stage 0 implements: core)", name)
-		}
 	}
 
 	env, err := newEnv(cfg.Instances)
@@ -54,14 +41,9 @@ func New(cfg *config.Config, cat *catalog.Catalog, opts Options) (*mcp.Server, e
 		return nil, err
 	}
 	srv := mcp.NewServer(&mcp.Implementation{Name: "portainer-mcp", Version: Version}, nil)
-	handlers := env.handlers()
 	registered := 0
-	for _, tool := range selectTools(cat, enabled, readOnly) {
-		h, ok := handlers[tool.Name]
-		if !ok {
-			continue
-		}
-		srv.AddTool(toTool(tool), adapt(h))
+	for _, tool := range selectTools(cat, enabled, readOnly, exhaustive) {
+		srv.AddTool(toTool(tool), adapt(env.call(tool)))
 		registered++
 	}
 	if registered == 0 {
@@ -70,9 +52,10 @@ func New(cfg *config.Config, cat *catalog.Catalog, opts Options) (*mcp.Server, e
 	return srv, nil
 }
 
-// selectTools flattens the enabled toolsets, dropping write tools when
-// readOnly is set so the client never sees what it may not call.
-func selectTools(cat *catalog.Catalog, enabled []string, readOnly bool) []catalog.Tool {
+// selectTools flattens the enabled toolsets. Without exhaustive it keeps the
+// curated default tools; readOnly drops write tools either way, so the client
+// never sees what it may not call.
+func selectTools(cat *catalog.Catalog, enabled []string, readOnly, exhaustive bool) []catalog.Tool {
 	var out []catalog.Tool
 	for _, name := range enabled {
 		ts, ok := cat.Toolset(name)
@@ -80,6 +63,9 @@ func selectTools(cat *catalog.Catalog, enabled []string, readOnly bool) []catalo
 			continue
 		}
 		for _, t := range ts.Tools {
+			if !exhaustive && !t.Default {
+				continue
+			}
 			if readOnly && !t.Annotations.IsReadOnly() {
 				continue
 			}
@@ -106,8 +92,9 @@ func toTool(t catalog.Tool) *mcp.Tool {
 	}
 }
 
-// handler is a catalog tool bound to the instance clients.
-type handler func(ctx context.Context, args map[string]any) (any, error)
+// handler performs one tool call. It returns the MCP result itself because the
+// API answer decides what goes into context.
+type handler func(ctx context.Context, args map[string]any) (*mcp.CallToolResult, error)
 
 // adapt turns a handler into a low-level MCP handler so API failures surface
 // as isError results instead of protocol errors or panics.
@@ -123,14 +110,7 @@ func adapt(h handler) mcp.ToolHandler {
 		if err != nil {
 			return toolError(err), nil
 		}
-		text, err := json.Marshal(out)
-		if err != nil {
-			return toolError(fmt.Errorf("encode result: %w", err)), nil
-		}
-		return &mcp.CallToolResult{
-			Content:           []mcp.Content{&mcp.TextContent{Text: string(text)}},
-			StructuredContent: out,
-		}, nil
+		return out, nil
 	}
 }
 

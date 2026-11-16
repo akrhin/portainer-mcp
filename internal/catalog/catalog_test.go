@@ -13,15 +13,60 @@ func TestEmbeddedCatalogValidates(t *testing.T) {
 	if len(c.Toolsets) != 11 {
 		t.Fatalf("want 11 toolsets, got %d", len(c.Toolsets))
 	}
+	total, defaults := 0, 0
+	for _, ts := range c.Toolsets {
+		if len(ts.Tools) == 0 {
+			t.Fatalf("toolset %q has no tools", ts.Name)
+		}
+		total += len(ts.Tools)
+		for _, tool := range ts.Tools {
+			if tool.Default {
+				defaults++
+			}
+		}
+	}
+	// One tool per operation of both documents (288 + 108) minus the websocket
+	// operations, plus the three raw extras.
+	if total != 394 {
+		t.Fatalf("want 394 tools, got %d", total)
+	}
+	if defaults != 87 {
+		t.Fatalf("want 87 default tools, got %d", defaults)
+	}
 	core, ok := c.Toolset("core")
 	if !ok {
 		t.Fatal("core toolset missing")
 	}
-	if len(core.Tools) != 7 {
-		t.Fatalf("want 7 core tools, got %d", len(core.Tools))
+	if len(core.Tools) != 29 {
+		t.Fatalf("want 29 core tools, got %d", len(core.Tools))
 	}
 	if _, ok := c.Toolset("docker"); !ok {
 		t.Fatal("docker toolset missing")
+	}
+}
+
+// TestGeneratedPaths keeps the decisions the generator makes about request
+// paths honest: Portainer paths stay under /api, Docker paths go through the
+// environment proxy without a pinned API version, and no parameter keeps the
+// old environmentId name.
+func TestGeneratedPaths(t *testing.T) {
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ts := range c.Toolsets {
+		for _, tool := range ts.Tools {
+			path := tool.Operation.Path
+			if strings.Contains(path, "{environmentId}") {
+				t.Fatalf("tool %q: path still names environmentId: %s", tool.Name, path)
+			}
+			if strings.Contains(path, "/v1.5") {
+				t.Fatalf("tool %q: path pins a Docker API version: %s", tool.Name, path)
+			}
+			if !tool.Operation.Raw && !strings.HasPrefix(path, "/api") {
+				t.Fatalf("tool %q: path is outside /api: %s", tool.Name, path)
+			}
+		}
 	}
 }
 
@@ -33,6 +78,7 @@ toolsets:
     tools:
       - name: t1
         annotations: {readOnlyHint: true}
+        operation: {method: GET, path: /api/system/status}
 `
 	if _, err := Parse([]byte(valid)); err != nil {
 		t.Fatalf("valid catalog rejected: %v", err)
@@ -52,16 +98,18 @@ toolsets:
     tools:
       - name: t1
         annotations: {readOnlyHint: true}
+        operation: {method: GET, path: /api/a}
   - name: docker
     depends_on: [core]
     tools:
       - name: t1
         annotations: {readOnlyHint: true}
+        operation: {method: GET, path: /api/b}
 `,
 			want: `duplicate tool "t1"`,
 		},
 		{
-			name: "write tool without destructive hint",
+			name: "write tool without destructive or idempotent hint",
 			doc: `
 version: 1
 toolsets:
@@ -69,8 +117,48 @@ toolsets:
     tools:
       - name: t1
         annotations: {readOnlyHint: false}
+        operation: {method: POST, path: /api/a}
 `,
-			want: `write tool "t1": annotations.destructiveHint is required`,
+			want: `write tool "t1": annotations.destructiveHint or idempotentHint is required`,
+		},
+		{
+			name: "tool without operation path",
+			doc: `
+version: 1
+toolsets:
+  - name: core
+    tools:
+      - name: t1
+        annotations: {readOnlyHint: true}
+        operation: {method: GET}
+`,
+			want: `tool "t1": operation.path is required`,
+		},
+		{
+			name: "relative operation path",
+			doc: `
+version: 1
+toolsets:
+  - name: core
+    tools:
+      - name: t1
+        annotations: {readOnlyHint: true}
+        operation: {method: GET, path: api/a}
+`,
+			want: `operation.path must start with /`,
+		},
+		{
+			name: "operation without method",
+			doc: `
+version: 1
+toolsets:
+  - name: core
+    tools:
+      - name: t1
+        annotations: {readOnlyHint: true}
+        operation: {path: /api/a}
+`,
+			want: `tool "t1": operation.method is required`,
 		},
 		{
 			name: "tool without toolset",
@@ -81,6 +169,7 @@ toolsets:
     tools:
       - name: t1
         annotations: {readOnlyHint: true}
+        operation: {method: GET, path: /api/a}
 `,
 			want: `tool "t1" has no toolset`,
 		},
@@ -93,6 +182,7 @@ toolsets:
     tools:
       - name: t1
         annotations: {readOnlyHint: true}
+        operation: {method: GET, path: /api/a}
   - name: helm
     depends_on: [k8s]
 `,
@@ -107,6 +197,7 @@ toolsets:
     tools:
       - name: t1
         annotations: {}
+        operation: {method: GET, path: /api/a}
 `,
 			want: `tool "t1": annotations.readOnlyHint is required`,
 		},
@@ -129,6 +220,51 @@ toolsets: []
 				t.Fatalf("error %q does not contain %q", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestMerge(t *testing.T) {
+	const meta = `
+version: 1
+toolsets:
+  - name: core
+    description: Core.
+    depends_on: []
+`
+	const tools = `
+version: 1
+toolsets:
+  - name: core
+    tools:
+      - name: t1
+        annotations: {readOnlyHint: true}
+        operation: {method: GET, path: /api/a}
+`
+	c, err := Merge([]byte(meta), []byte(tools))
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	core, _ := c.Toolset("core")
+	if core.Description != "Core." || len(core.Tools) != 1 {
+		t.Fatalf("merged toolset = %+v", core)
+	}
+
+	_, err = Merge([]byte(meta), []byte(`
+version: 1
+toolsets:
+  - name: core
+    tools:
+      - name: t1
+        annotations: {readOnlyHint: true}
+        operation: {method: GET, path: /api/a}
+  - name: ghost
+    tools:
+      - name: t2
+        annotations: {readOnlyHint: true}
+        operation: {method: GET, path: /api/b}
+`))
+	if err == nil || !strings.Contains(err.Error(), `generated toolset "ghost" is not declared in catalog.yaml`) {
+		t.Fatalf("stray toolset error missing: %v", err)
 	}
 }
 

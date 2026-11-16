@@ -1,289 +1,49 @@
-# Declarative tool catalog. Registration, read-only filtering and the golden
-# test all read from this file; a tool that is not here cannot be called.
-#
-# Stage 0 implements the `core` handlers only. Every other toolset is declared
-# with the operations named in docs/history/2026-11-16-market-research.ru.md
-# (section 8); selecting one fails at startup with "not implemented yet".
-# Tools are listed per operation; the report's per-toolset counts are budgets
-# for merging verb families, which is a stage-1 decision.
+# Curated catalog metadata: toolset names, descriptions and dependencies.
+# The tools themselves are generated from the OpenAPI documents in api/ by
+# tools/cataloggen into generated.yaml; edit api/toolsets.yaml to move an
+# operation between sets, never this file's tool lists (there are none).
 version: 1
-
-x-instance-param: &instance
-  type: string
-  description: Name of a configured Portainer instance; defaults to the first one.
-
 toolsets:
   - name: core
     description: Server identity, status, settings and environment inventory. Read-only.
     depends_on: []
-    tools:
-      - name: system_version
-        description: Portainer server version, API version and edition. Use it to check which features this server has before relying on them.
-        annotations: {title: System version, readOnlyHint: true, idempotentHint: true, openWorldHint: true}
-        input:
-          type: object
-          properties:
-            instance: *instance
-          additionalProperties: false
-        output:
-          type: object
-          properties:
-            Version: {type: string, description: Portainer server version}
-            ApiVersion: {type: string}
-            ServerEdition: {type: string, description: CE or EE}
-          additionalProperties: true
-
-      - name: system_status
-        description: Health of the Portainer server itself. Use it as a liveness check before a batch of calls.
-        annotations: {title: System status, readOnlyHint: true, idempotentHint: true, openWorldHint: true}
-        input:
-          type: object
-          properties:
-            instance: *instance
-          additionalProperties: false
-        output:
-          type: object
-          properties:
-            Status: {type: string, description: up when the server is healthy}
-          additionalProperties: true
-
-      - name: system_info
-        description: Runtime information of the Portainer server (host, platform, CPUs, memory). Use it to describe the deployment, not to act on it.
-        annotations: {title: System info, readOnlyHint: true, idempotentHint: true, openWorldHint: true}
-        input:
-          type: object
-          properties:
-            instance: *instance
-          additionalProperties: false
-        output:
-          type: object
-          additionalProperties: true
-
-      - name: settings_get
-        description: Effective Portainer settings (authentication, edge, snapshot interval, templates). Use it when behaviour depends on configuration; nothing here changes it.
-        annotations: {title: Get settings, readOnlyHint: true, idempotentHint: true, openWorldHint: true}
-        input:
-          type: object
-          properties:
-            instance: *instance
-          additionalProperties: false
-        output:
-          type: object
-          additionalProperties: true
-
-      - name: whoami
-        description: The user the configured API key belongs to. Use it first when a call fails with 401 or 403 to see whose permissions apply.
-        annotations: {title: Current user, readOnlyHint: true, idempotentHint: true, openWorldHint: true}
-        input:
-          type: object
-          properties:
-            instance: *instance
-          additionalProperties: false
-        output:
-          type: object
-          properties:
-            Id: {type: integer}
-            Username: {type: string}
-            Role: {type: integer, description: "1 admin, 2 user"}
-          additionalProperties: true
-
-      - name: environment_list
-        description: Environments (endpoints) reachable through this Portainer, without snapshots. Use it to find the environment id that other toolsets need.
-        annotations: {title: List environments, readOnlyHint: true, idempotentHint: true, openWorldHint: true}
-        input:
-          type: object
-          properties:
-            instance: *instance
-          additionalProperties: false
-        output:
-          type: object
-          properties:
-            environments:
-              type: array
-              items:
-                type: object
-                properties:
-                  id: {type: integer}
-                  name: {type: string}
-                  type: {type: string, description: "docker, agent, azure, edge-agent, kubernetes-local, kubernetes or edge-kubernetes"}
-                  status: {type: string, description: "up, down or unknown"}
-                  url: {type: string}
-                required: [id, name]
-          required: [environments]
-
-      - name: environment_inspect
-        description: One environment with its connection details and snapshot history. Use it after environment_list to check whether the agent behind an environment is reachable.
-        annotations: {title: Inspect environment, readOnlyHint: true, idempotentHint: true, openWorldHint: true}
-        input:
-          type: object
-          properties:
-            instance: *instance
-            id: {type: integer, description: Environment id from environment_list}
-          required: [id]
-          additionalProperties: false
-        output:
-          type: object
-          properties:
-            Id: {type: integer}
-            Name: {type: string}
-            Snapshots:
-              type: array
-              description: Snapshot history, newest last.
-              items: {type: object, additionalProperties: true}
-          additionalProperties: true
 
   - name: docker
     description: Docker containers, images, networks, volumes and daemon info through an environment.
     depends_on: [core]
-    tools:
-      - {name: docker_container_list, description: List containers on an environment, running and stopped. Declared for stage 1; not implemented yet., annotations: {title: List containers, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_container_inspect, description: Full configuration and state of one container. Declared for stage 1; not implemented yet., annotations: {title: Inspect container, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_container_create, description: Create a container. Declared for stage 1; not implemented yet., annotations: {title: Create container, readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true}}
-      - {name: docker_container_start, description: Start a stopped container. Declared for stage 1; not implemented yet., annotations: {title: Start container, readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_container_stop, description: Stop a running container. Declared for stage 1; not implemented yet., annotations: {title: Stop container, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_container_restart, description: Restart a container. Declared for stage 1; not implemented yet., annotations: {title: Restart container, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_container_remove, description: Remove a container. Declared for stage 1; not implemented yet., annotations: {title: Remove container, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_container_logs, description: Container logs as a snapshot. Declared for stage 1; not implemented yet., annotations: {title: Container logs, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_container_stats, description: Resource usage of a container. Declared for stage 1; not implemented yet., annotations: {title: Container stats, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_container_top, description: Processes running inside a container. Declared for stage 1; not implemented yet., annotations: {title: Container processes, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_container_exec, description: Run a command inside a container over the Portainer websocket. Declared for stage 1; not implemented yet., annotations: {title: Exec in container, readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true}}
-      - {name: docker_image_list, description: List images. Declared for stage 1; not implemented yet., annotations: {title: List images, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_image_pull, description: Pull an image by reference. Declared for stage 1; not implemented yet., annotations: {title: Pull image, readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_image_remove, description: Remove an image. Declared for stage 1; not implemented yet., annotations: {title: Remove image, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_network_list, description: List networks. Declared for stage 1; not implemented yet., annotations: {title: List networks, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_network_create, description: Create a network. Declared for stage 1; not implemented yet., annotations: {title: Create network, readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true}}
-      - {name: docker_network_connect, description: Connect a container to a network. Declared for stage 1; not implemented yet., annotations: {title: Connect network, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_network_remove, description: Remove a network. Declared for stage 1; not implemented yet., annotations: {title: Remove network, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_volume_list, description: List volumes. Declared for stage 1; not implemented yet., annotations: {title: List volumes, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_volume_create, description: Create a volume. Declared for stage 1; not implemented yet., annotations: {title: Create volume, readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_volume_remove, description: Remove a volume. Declared for stage 1; not implemented yet., annotations: {title: Remove volume, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_system_df, description: Disk usage of images, containers, volumes and build cache. Declared for stage 1; not implemented yet., annotations: {title: Disk usage, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_system_info, description: Docker daemon information for an environment. Declared for stage 1; not implemented yet., annotations: {title: Docker info, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: docker_system_events, description: Recent daemon events. Declared for stage 1; not implemented yet., annotations: {title: Docker events, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
 
   - name: swarm
     description: Docker Swarm services, nodes and tasks.
     depends_on: [docker]
-    tools:
-      - {name: swarm_service_list, description: List swarm services. Declared for stage 1; not implemented yet., annotations: {title: List services, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: swarm_service_inspect, description: Inspect a swarm service. Declared for stage 1; not implemented yet., annotations: {title: Inspect service, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: swarm_service_create, description: Create a swarm service. Declared for stage 1; not implemented yet., annotations: {title: Create service, readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true}}
-      - {name: swarm_service_scale, description: Change the replica count of a service. Declared for stage 1; not implemented yet., annotations: {title: Scale service, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: swarm_service_remove, description: Remove a swarm service. Declared for stage 1; not implemented yet., annotations: {title: Remove service, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: swarm_node_list, description: List swarm nodes with availability and role. Declared for stage 1; not implemented yet., annotations: {title: List nodes, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: swarm_task_list, description: List swarm tasks. Declared for stage 1; not implemented yet., annotations: {title: List tasks, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
 
   - name: k8s
     description: Kubernetes namespaces, workloads, services, config and cluster nodes.
     depends_on: [core]
-    tools:
-      - {name: k8s_namespace_list, description: List namespaces. Declared for stage 3; not implemented yet., annotations: {title: List namespaces, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_pod_list, description: List pods in a namespace. Declared for stage 3; not implemented yet., annotations: {title: List pods, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_pod_logs, description: Pod logs as a snapshot. Declared for stage 3; not implemented yet., annotations: {title: Pod logs, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_pod_delete, description: Delete a pod. Declared for stage 3; not implemented yet., annotations: {title: Delete pod, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_deployment_scale, description: Scale a deployment. Declared for stage 3; not implemented yet., annotations: {title: Scale deployment, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_deployment_restart, description: Rolling restart of a deployment. Declared for stage 3; not implemented yet., annotations: {title: Restart deployment, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_deployment_rollback, description: Roll a deployment back to a revision. Declared for stage 3; not implemented yet., annotations: {title: Rollback deployment, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_service_list, description: List services. Declared for stage 3; not implemented yet., annotations: {title: List services, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_ingress_list, description: List ingresses. Declared for stage 3; not implemented yet., annotations: {title: List ingresses, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_configmap_list, description: List config maps. Declared for stage 3; not implemented yet., annotations: {title: List config maps, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_secret_list, description: List secrets by metadata only, never values. Declared for stage 3; not implemented yet., annotations: {title: List secrets, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_pvc_list, description: List persistent volume claims. Declared for stage 3; not implemented yet., annotations: {title: List PVCs, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_node_drain, description: Drain a cluster node. Declared for stage 3; not implemented yet., annotations: {title: Drain node, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_node_cordon, description: Cordon or uncordon a cluster node. Declared for stage 3; not implemented yet., annotations: {title: Cordon node, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_event_list, description: Cluster events in a namespace. Declared for stage 3; not implemented yet., annotations: {title: List events, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_custom_resource_list, description: List custom resources by kind and group. Declared for stage 3; not implemented yet., annotations: {title: List custom resources, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: k8s_kubeconfig_get, description: Kubeconfig for an environment. Declared for stage 3; not implemented yet., annotations: {title: Get kubeconfig, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
 
   - name: helm
     description: Helm repositories, chart search and releases.
     depends_on: [k8s]
-    tools:
-      - {name: helm_repository_list, description: List configured Helm repositories. Declared for stage 3; not implemented yet., annotations: {title: List repositories, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: helm_chart_search, description: Search a repository for charts. Declared for stage 3; not implemented yet., annotations: {title: Search charts, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: helm_release_list, description: List Helm releases in a namespace. Declared for stage 3; not implemented yet., annotations: {title: List releases, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: helm_release_install, description: Install a chart as a release. Declared for stage 3; not implemented yet., annotations: {title: Install release, readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true}}
-      - {name: helm_release_upgrade, description: Upgrade a release. Declared for stage 3; not implemented yet., annotations: {title: Upgrade release, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: helm_release_rollback, description: Roll a release back. Declared for stage 3; not implemented yet., annotations: {title: Rollback release, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: helm_release_uninstall, description: Uninstall a release. Declared for stage 3; not implemented yet., annotations: {title: Uninstall release, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: helm_release_values, description: Values of a release. Declared for stage 3; not implemented yet., annotations: {title: Release values, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
 
   - name: stacks
     description: Portainer compose stacks from file, git or string.
     depends_on: [docker]
-    tools:
-      - {name: stack_list, description: List stacks. Declared for stage 2; not implemented yet., annotations: {title: List stacks, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: stack_inspect, description: Inspect a stack. Declared for stage 2; not implemented yet., annotations: {title: Inspect stack, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: stack_create_file, description: Create a stack from a compose file upload. Declared for stage 2; not implemented yet., annotations: {title: Create stack from file, readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true}}
-      - {name: stack_create_git, description: Create a stack from a git repository. Declared for stage 2; not implemented yet., annotations: {title: Create stack from git, readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true}}
-      - {name: stack_create_string, description: Create a stack from a compose string. Declared for stage 2; not implemented yet., annotations: {title: Create stack from string, readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true}}
-      - {name: stack_update, description: Update a stack definition. Declared for stage 2; not implemented yet., annotations: {title: Update stack, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: stack_start, description: Start a stopped stack. Declared for stage 2; not implemented yet., annotations: {title: Start stack, readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true}}
-      - {name: stack_stop, description: Stop a running stack. Declared for stage 2; not implemented yet., annotations: {title: Stop stack, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: stack_remove, description: Remove a stack. Declared for stage 2; not implemented yet., annotations: {title: Remove stack, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: stack_migrate, description: Migrate a stack to another environment. Declared for stage 2; not implemented yet., annotations: {title: Migrate stack, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: stack_file_get, description: Compose file of a stack. Declared for stage 2; not implemented yet., annotations: {title: Get stack file, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: stack_webhook, description: Webhook URL of a stack. Declared for stage 2; not implemented yet., annotations: {title: Stack webhook, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: stack_images, description: Images used by a stack. Declared for stage 2; not implemented yet., annotations: {title: Stack images, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
 
   - name: gitops
     description: GitOps sources, file preview and workflows.
     depends_on: [stacks]
-    tools:
-      - {name: gitops_source_list, description: List git sources. Declared for stage 2; not implemented yet., annotations: {title: List sources, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: gitops_source_add, description: Add a git source. Declared for stage 2; not implemented yet., annotations: {title: Add source, readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true}}
-      - {name: gitops_source_remove, description: Remove a git source. Declared for stage 2; not implemented yet., annotations: {title: Remove source, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: gitops_source_test, description: Test connection to a git source. Declared for stage 2; not implemented yet., annotations: {title: Test source, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: gitops_file_preview, description: Preview a file from a git source. Declared for stage 2; not implemented yet., annotations: {title: Preview file, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: gitops_workflow_list, description: List gitops workflows. Declared for stage 2; not implemented yet., annotations: {title: List workflows, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
 
   - name: edge
     description: Edge groups, edge stacks, jobs, configs and update schedules.
     depends_on: [core]
-    tools:
-      - {name: edge_group_list, description: List edge groups. Declared for stage 4; not implemented yet., annotations: {title: List edge groups, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: edge_stack_list, description: List edge stacks. Declared for stage 4; not implemented yet., annotations: {title: List edge stacks, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: edge_job_list, description: List edge jobs. Declared for stage 4; not implemented yet., annotations: {title: List edge jobs, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: edge_job_logs, description: Logs of an edge job. Declared for stage 4; not implemented yet., annotations: {title: Edge job logs, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: edge_config_list, description: List edge configs. Declared for stage 4; not implemented yet., annotations: {title: List edge configs, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: edge_key_list, description: List edge keys. Declared for stage 4; not implemented yet., annotations: {title: List edge keys, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: edge_wait_for_command, description: Wait for the next command of an edge agent. Declared for stage 4; not implemented yet., annotations: {title: Wait for command, readOnlyHint: true, idempotentHint: false, openWorldHint: true}}
-      - {name: edge_update_schedule_list, description: List edge update schedules. Declared for stage 4; not implemented yet., annotations: {title: List update schedules, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
 
   - name: admin
     description: Users, teams, permissions, registries and server administration.
     depends_on: [core]
-    tools:
-      - {name: admin_user_list, description: List users. Declared for stage 4; not implemented yet., annotations: {title: List users, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_user_inspect, description: Inspect a user. Declared for stage 4; not implemented yet., annotations: {title: Inspect user, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_user_create, description: Create a user. Declared for stage 4; not implemented yet., annotations: {title: Create user, readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true}}
-      - {name: admin_user_remove, description: Remove a user. Declared for stage 4; not implemented yet., annotations: {title: Remove user, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_team_list, description: List teams. Declared for stage 4; not implemented yet., annotations: {title: List teams, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_team_create, description: Create a team. Declared for stage 4; not implemented yet., annotations: {title: Create team, readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true}}
-      - {name: admin_membership_add, description: Add a user to a team. Declared for stage 4; not implemented yet., annotations: {title: Add team member, readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_role_list, description: List roles. Declared for stage 4; not implemented yet., annotations: {title: List roles, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_endpoint_group_list, description: List endpoint groups. Declared for stage 4; not implemented yet., annotations: {title: List endpoint groups, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_resource_control_list, description: List resource controls. Declared for stage 4; not implemented yet., annotations: {title: List resource controls, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_registry_list, description: List registries. Declared for stage 4; not implemented yet., annotations: {title: List registries, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_tag_list, description: List tags. Declared for stage 4; not implemented yet., annotations: {title: List tags, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_backup_get, description: Server backup archive. Declared for stage 4; not implemented yet., annotations: {title: Get backup, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_ldap_get, description: LDAP settings. Declared for stage 4; not implemented yet., annotations: {title: Get LDAP settings, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_ssl_get, description: SSL settings. Declared for stage 4; not implemented yet., annotations: {title: Get SSL settings, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: admin_settings_update, description: Change server settings. Declared for stage 4; not implemented yet., annotations: {title: Update settings, readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true}}
 
   - name: observability
     description: User and endpoint activity, docker and kubernetes events.
     depends_on: [core]
-    tools:
-      - {name: observability_user_activity, description: Recent user activity. Declared for stage 4; not implemented yet., annotations: {title: User activity, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: observability_endpoint_activity, description: Recent endpoint activity. Declared for stage 4; not implemented yet., annotations: {title: Endpoint activity, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: observability_docker_events, description: Docker daemon events across environments. Declared for stage 4; not implemented yet., annotations: {title: Docker events, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
-      - {name: observability_k8s_events, description: Kubernetes events across environments. Declared for stage 4; not implemented yet., annotations: {title: Kubernetes events, readOnlyHint: true, idempotentHint: true, openWorldHint: true}}
 
   - name: raw
     description: Escape hatch — one raw request against Portainer, Docker or Kubernetes. Never enabled by a dependency.
     depends_on: []
-    tools:
-      - {name: portainer_raw, description: Raw Portainer API request with method and path. Declared for stage 4; not implemented yet., annotations: {title: Raw Portainer request, readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true}}
-      - {name: docker_raw, description: Raw Docker Engine API request through an environment proxy. Declared for stage 4; not implemented yet., annotations: {title: Raw Docker request, readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true}}
-      - {name: k8s_raw, description: Raw Kubernetes API request through an environment proxy. Declared for stage 4; not implemented yet., annotations: {title: Raw Kubernetes request, readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true}}

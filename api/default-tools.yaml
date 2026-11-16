@@ -1,0 +1,119 @@
+# The curated set registered without --exhaustive: 87 tools, the meaning the
+# stage-0 catalog carried (core 7, docker 13, swarm 6, k8s 14, helm 6, stacks 9,
+# gitops 5, edge 8, admin 12, observability 4, raw 3).
+#
+# Entries are operationIds from either OpenAPI document, or the name of an entry
+# under `extras` in api/toolsets.yaml. An operationId that exists in both
+# documents is written as "<source>/<operationId>". --exhaustive registers every
+# operation of the enabled toolsets regardless of this list.
+version: 1
+
+tools:
+  # core
+  - systemVersion
+  - systemStatus
+  - systemInfo
+  - SettingsInspect
+  - CurrentUserInspect
+  - EndpointList
+  - EndpointInspect
+
+  # docker
+  - ContainerList
+  - ContainerInspect
+  - ContainerCreate
+  - ContainerStart
+  - ContainerStop
+  - ContainerRestart
+  - ContainerDelete
+  - ContainerLogs
+  - ContainerExec
+  - ImageList
+  - ImageInspect
+  - ImageDelete
+  - NetworkList
+
+  # swarm
+  - ServiceList
+  - ServiceInspect
+  - ServiceCreate
+  - ServiceDelete
+  - NodeList
+  - TaskList
+
+  # k8s
+  - GetKubernetesNamespaces
+  - getAllKubernetesPods
+  - getKubernetesPodLogs
+  - DeleteKubernetesPod
+  - ScaleKubernetesDeployment
+  - RollbackKubernetesDeployment
+  - RestartKubernetesPod
+  - GetKubernetesServices
+  - GetAllKubernetesClusterIngresses
+  - GetAllKubernetesConfigMaps
+  - GetKubernetesSecrets
+  - GetAllKubernetesPersistentVolumeClaims
+  - GetKubernetesNodes
+  - drainNode
+
+  # helm
+  - HelmList
+  - HelmInstall
+  - HelmDelete
+  - HelmGet
+  - HelmRollback
+  - HelmUserRepositoriesList
+
+  # stacks
+  - StackList
+  - StackInspect
+  - StackCreateDockerStandaloneFile
+  - StackCreateDockerStandaloneString
+  - StackCreateDockerStandaloneRepository
+  - StackUpdate
+  - StackStart
+  - StackStop
+  - StackDelete
+
+  # gitops
+  - GitOpsSourcesList
+  - GitOpsSourceGet
+  - GitOpsSourcesCreateGit
+  - GitOpsSourcesDelete
+  - GitOpsSourcesTest
+
+  # edge
+  - EdgeGroupList
+  - EdgeStackList
+  - EdgeStackInspect
+  - EdgeStackFile
+  - EdgeJobList
+  - EdgeJobTasksList
+  - EdgeJobTaskLogsInspect
+  - EndpointEdgeStatusInspect
+
+  # admin
+  - UserList
+  - UserInspect
+  - UserCreate
+  - UserDelete
+  - TeamList
+  - TeamCreate
+  - TeamMembershipCreate
+  - RoleList
+  - EndpointGroupList
+  - ResourceControlCreate
+  - RegistryList
+  - TagList
+
+  # observability
+  - StatusInspect
+  - SystemEvents
+  - getAllKubernetesEvents
+  - getKubernetesEventsForNamespace
+
+  # raw
+  - portainer_raw
+  - docker_raw
+  - k8s_raw

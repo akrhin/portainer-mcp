@@ -13,10 +13,13 @@ No release has been cut yet. Everything below is on `main` and not yet tagged.
 
 - Go module `github.com/akrhin/portainer-mcp` on Go 1.27, depending on
   `github.com/modelcontextprotocol/go-sdk` v1.8.0 and `gopkg.in/yaml.v3`.
-- Declarative tool catalog in `internal/catalog/catalog.yaml`, embedded into the
-  binary: eleven toolsets (`core`, `docker`, `swarm`, `k8s`, `helm`, `stacks`,
-  `gitops`, `edge`, `admin`, `observability`, `raw`) with explicit `depends_on`
-  edges, and 113 operations declared across them.
+- Declarative tool catalog embedded into the binary as two documents:
+  `internal/catalog/catalog.yaml` keeps what a person curates — eleven toolsets
+  (`core`, `docker`, `swarm`, `k8s`, `helm`, `stacks`, `gitops`, `edge`, `admin`,
+  `observability`, `raw`) with their descriptions and `depends_on` edges — and
+  `internal/catalog/generated.yaml` keeps every tool, generated from the Portainer
+  2.45 and Docker Engine 1.57 specifications: 395 tools, 87 of them in the default
+  set.
 - Catalog validation on startup: unique toolset and tool names, `readOnlyHint`
   required on every tool, `destructiveHint` required on write tools, `input` and
   `output` schemas constrained to `type: object`, dependencies must name known
@@ -31,19 +34,33 @@ No release has been cut yet. Everything below is on `main` and not yet tagged.
 - Entry point `cmd/portainer-mcp` with `--config`, `--toolsets`, `--read-only` and
   `--exhaustive`; stdio transport by default, Streamable HTTP at `/mcp` when
   `server.transport` is `http`.
-- Registration from the catalog: enabled toolsets are checked with their
-  dependencies, read-only mode skips every tool that is not annotated
-  `readOnlyHint: true`, and a tool with no handler fails startup instead of being
-  registered dead.
-- Seven read-only `core` tools implemented: `system_version`, `system_status`,
-  `system_info`, `settings_get`, `whoami`, `environment_list`,
-  `environment_inspect`.
-- `Makefile` with `build` and `check` targets.
+- Catalog generator `tools/cataloggen` (`make catalog`): reads both specifications
+  and the two curated files in `api/`, and writes `internal/catalog/generated.yaml`.
+  The run is deterministic — the same inputs produce the same bytes — and
+  `tools/cataloggen/cataloggen_test.go` fails when the committed file drifts.
+- `api/toolsets.yaml`: tag-to-toolset map covering all 31 Portainer and 15 Docker
+  tags, name rules for `<entity>_<verb>` tool names with an explicit rewrite and
+  unnamed-operation list, parameter renames, and the three raw extras.
+- `api/default-tools.yaml`: the 87 operations registered when `--exhaustive` is off.
+- One universal executor, `(*portainer.Client).Do`, instead of a generated client:
+  path parameters are escaped and substituted, query values are encoded (arrays as
+  repeated keys or comma-joined), the body is passed through, non-2xx replies
+  become the existing `APIError`, and an answer above 1 MiB is truncated with a
+  marker in the text.
+- Registration is data: tool input schema, annotations and HTTP operation all come
+  from the catalog, so `--exhaustive` now registers every operation of the enabled
+  toolsets instead of refusing to start, and `--read-only` filters at registration
+  time as before. `internal/mcpserver/core.go` is gone; `core` is data too.
+- `Makefile` with `build`, `check` and `catalog` targets.
+- `scripts/smoke.sh` accepts `SMOKE_TOOLSETS` and calls one read tool from every
+  enabled set on top of the curated `core` calls.
 - Documentation skeleton: `docs/index.md` with a Russian mirror, an archived market
   research note in `docs/history/`, and `scripts/docs-check.sh` as the docs gate.
 - `LICENSE` (MIT), `SECURITY.md` and `CONTRIBUTING.md`, each with a Russian mirror.
 
 ### Notes
 
-- Stage 0 implements the `core` handlers only. Every other toolset is declared but
-  selecting it fails at startup until its stage lands.
+- Docker operations go through the Portainer proxy
+  (`/api/endpoints/{environment}/docker<path>`) with `environment` as a required
+  argument; the server never opens a Docker socket itself. The docker-engine
+  version prefix in the specification is deliberately not pinned.

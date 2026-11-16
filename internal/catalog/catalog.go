@@ -1,5 +1,9 @@
 // Package catalog loads the declarative tool catalog that drives tool
 // registration, read-only filtering and validation of the toolset selection.
+//
+// Two documents make up the catalog: catalog.yaml is curated by hand (toolset
+// names, descriptions, dependencies) and generated.yaml is written by
+// tools/cataloggen from the OpenAPI documents in api/. Load merges them.
 package catalog
 
 import (
@@ -11,7 +15,10 @@ import (
 )
 
 //go:embed catalog.yaml
-var embedded []byte
+var embeddedMeta []byte
+
+//go:embed generated.yaml
+var embeddedTools []byte
 
 // Catalog is the tool catalog as data.
 type Catalog struct {
@@ -24,8 +31,8 @@ type Catalog struct {
 // Toolset is one switchable group of tools.
 type Toolset struct {
 	Name        string   `yaml:"name"`
-	Description string   `yaml:"description"`
-	DependsOn   []string `yaml:"depends_on"`
+	Description string   `yaml:"description,omitempty"`
+	DependsOn   []string `yaml:"depends_on,omitempty"`
 	Tools       []Tool   `yaml:"tools"`
 }
 
@@ -34,18 +41,33 @@ type Tool struct {
 	Name        string         `yaml:"name"`
 	Description string         `yaml:"description"`
 	Annotations Annotations    `yaml:"annotations"`
-	Input       map[string]any `yaml:"input"`
-	Output      map[string]any `yaml:"output"`
+	Input       map[string]any `yaml:"input,omitempty"`
+	Output      map[string]any `yaml:"output,omitempty"`
+	Operation   Operation      `yaml:"operation"`
+	Default     bool           `yaml:"default,omitempty"`
+}
+
+// Operation is the HTTP call a tool performs.
+type Operation struct {
+	Method string `yaml:"method"`
+	Path   string `yaml:"path"`
+	// Body names the input property holding the JSON request body.
+	Body string `yaml:"body,omitempty"`
+	// CSV lists query parameters encoded as one comma-joined value.
+	CSV []string `yaml:"csv,omitempty"`
+	// Raw tools take method and path from their arguments and append the path
+	// to Path.
+	Raw bool `yaml:"raw,omitempty"`
 }
 
 // Annotations mirror the MCP tool annotations. Pointers distinguish a missing
 // hint from an explicit false.
 type Annotations struct {
-	Title           string `yaml:"title"`
+	Title           string `yaml:"title,omitempty"`
 	ReadOnlyHint    *bool  `yaml:"readOnlyHint"`
-	DestructiveHint *bool  `yaml:"destructiveHint"`
-	IdempotentHint  *bool  `yaml:"idempotentHint"`
-	OpenWorldHint   *bool  `yaml:"openWorldHint"`
+	DestructiveHint *bool  `yaml:"destructiveHint,omitempty"`
+	IdempotentHint  *bool  `yaml:"idempotentHint,omitempty"`
+	OpenWorldHint   *bool  `yaml:"openWorldHint,omitempty"`
 }
 
 // IsReadOnly reports whether the tool is explicitly declared read-only.
@@ -60,15 +82,55 @@ func (a Annotations) IsIdempotent() bool {
 
 // Load parses and validates the embedded catalog.
 func Load() (*Catalog, error) {
-	return Parse(embedded)
+	return Merge(embeddedMeta, embeddedTools)
 }
 
-// Parse parses and validates a catalog document.
+// Merge attaches the generated tools to the curated toolset metadata.
+func Merge(meta, tools []byte) (*Catalog, error) {
+	var c Catalog
+	if err := yaml.Unmarshal(meta, &c); err != nil {
+		return nil, fmt.Errorf("parse catalog: %w", err)
+	}
+	var gen Catalog
+	if err := yaml.Unmarshal(tools, &gen); err != nil {
+		return nil, fmt.Errorf("parse generated catalog: %w", err)
+	}
+	if gen.Version != c.Version {
+		return nil, fmt.Errorf("catalog: curated version %d does not match generated version %d", c.Version, gen.Version)
+	}
+	generated := make(map[string][]Tool, len(gen.Toolsets))
+	for _, ts := range gen.Toolsets {
+		generated[ts.Name] = ts.Tools
+	}
+	for i := range c.Toolsets {
+		ts := &c.Toolsets[i]
+		found, ok := generated[ts.Name]
+		if !ok {
+			return nil, fmt.Errorf("catalog: toolset %q has no generated tools", ts.Name)
+		}
+		if len(ts.Tools) > 0 {
+			return nil, fmt.Errorf("catalog: toolset %q declares tools in catalog.yaml; tools come from generated.yaml", ts.Name)
+		}
+		ts.Tools = found
+		delete(generated, ts.Name)
+	}
+	for name := range generated {
+		return nil, fmt.Errorf("catalog: generated toolset %q is not declared in catalog.yaml", name)
+	}
+	return initCatalog(&c)
+}
+
+// Parse parses and validates a catalog document. Toolsets carry their tools
+// inline, so a single document is enough.
 func Parse(data []byte) (*Catalog, error) {
 	var c Catalog
 	if err := yaml.Unmarshal(data, &c); err != nil {
 		return nil, fmt.Errorf("parse catalog: %w", err)
 	}
+	return initCatalog(&c)
+}
+
+func initCatalog(c *Catalog) (*Catalog, error) {
 	c.byName = make(map[string]*Toolset, len(c.Toolsets))
 	for i := range c.Toolsets {
 		c.byName[c.Toolsets[i].Name] = &c.Toolsets[i]
@@ -76,7 +138,7 @@ func Parse(data []byte) (*Catalog, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
-	return &c, nil
+	return c, nil
 }
 
 // Validate checks the catalog invariants that the golden test and registration
@@ -112,14 +174,24 @@ func (c *Catalog) Validate() error {
 			if t.Annotations.ReadOnlyHint == nil {
 				return fmt.Errorf("catalog: tool %q: annotations.readOnlyHint is required", t.Name)
 			}
-			if !t.Annotations.IsReadOnly() && t.Annotations.DestructiveHint == nil {
-				return fmt.Errorf("catalog: write tool %q: annotations.destructiveHint is required", t.Name)
+			if !t.Annotations.IsReadOnly() &&
+				t.Annotations.DestructiveHint == nil && t.Annotations.IdempotentHint == nil {
+				return fmt.Errorf("catalog: write tool %q: annotations.destructiveHint or idempotentHint is required", t.Name)
 			}
 			if t.Input != nil && t.Input["type"] != "object" {
 				return fmt.Errorf("catalog: tool %q: input schema must have type object", t.Name)
 			}
-			if t.Output != nil && t.Output["type"] != "object" {
-				return fmt.Errorf("catalog: tool %q: output schema must have type object", t.Name)
+			if t.Output != nil && t.Output["type"] != "object" && t.Output["type"] != "array" {
+				return fmt.Errorf("catalog: tool %q: output schema must have type object or array", t.Name)
+			}
+			if t.Operation.Path == "" {
+				return fmt.Errorf("catalog: tool %q: operation.path is required", t.Name)
+			}
+			if !t.Operation.Raw && t.Operation.Method == "" {
+				return fmt.Errorf("catalog: tool %q: operation.method is required", t.Name)
+			}
+			if !strings.HasPrefix(t.Operation.Path, "/") {
+				return fmt.Errorf("catalog: tool %q: operation.path must start with /", t.Name)
 			}
 		}
 	}

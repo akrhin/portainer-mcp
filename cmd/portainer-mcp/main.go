@@ -34,7 +34,7 @@ func run() error {
 	configPath := flag.String("config", "config.yaml", "path to the YAML config")
 	toolsets := flag.String("toolsets", "", "comma-separated toolsets, overrides the config")
 	readOnly := flag.Bool("read-only", false, "register read-only tools only")
-	exhaustive := flag.Bool("exhaustive", false, "register one tool per API operation (stage 1)")
+	exhaustive := flag.Bool("exhaustive", false, "register every operation of the enabled toolsets, not the curated default set")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 

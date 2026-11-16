@@ -1,0 +1,133 @@
+# Curated mapping that drives tools/cataloggen. Every tool in the catalog is
+# derived from the two OpenAPI documents in this directory plus this file; no
+# handler is written by hand.
+#
+# Nothing in this file is compiled in: the generator reads it, and
+# internal/catalog/catalog.yaml keeps the toolset descriptions and dependencies.
+version: 1
+
+# Toolset order in the generated catalog follows this list.
+toolsets: [core, docker, swarm, k8s, helm, stacks, gitops, edge, admin, observability, raw]
+
+# OpenAPI tag -> toolset. All 31 tags of the Portainer document and all 15 tags
+# of the Docker Engine document must appear here.
+tags:
+  portainer:
+    auth: admin
+    backup: admin
+    custom_templates: stacks
+    docker: docker
+    edge_agent: edge
+    edge_groups: edge
+    edge_jobs: edge
+    edge_stacks: edge
+    endpoint_groups: admin
+    endpoints: core
+    gitops: gitops
+    helm: helm
+    kubernetes: k8s
+    ldap: admin
+    motd: core
+    registries: admin
+    resource_controls: admin
+    roles: admin
+    settings: core
+    ssl: admin
+    stacks: stacks
+    status: observability
+    system: core
+    tags: admin
+    team_memberships: admin
+    teams: admin
+    templates: admin
+    upload: admin
+    users: admin
+    webhooks: stacks
+    websocket: raw
+  docker:
+    Config: swarm
+    Container: docker
+    Distribution: docker
+    Exec: docker
+    Image: docker
+    Network: docker
+    Node: swarm
+    Plugin: docker
+    Secret: swarm
+    Service: swarm
+    Session: docker
+    Swarm: swarm
+    System: docker
+    Task: swarm
+    Volume: docker
+
+# Per-operation override of the tag mapping.
+operation_toolsets:
+  SystemEvents: observability
+  getAllKubernetesEvents: observability
+  getKubernetesEventsForNamespace: observability
+  SystemInfo: docker
+  CurrentUserInspect: core
+
+# Operations under these tags are not exposed: a websocket upgrade needs a raw
+# TCP stream, which an MCP tool call does not carry.
+skip_tags: [websocket]
+# A websocket upgrade cannot be carried by a request/response tool; the tool
+# would register and then fail on every call.
+skip_paths: ["/containers/{id}/attach/ws"]
+
+# Words the camelCase splitter breaks apart, rejoined. Sorted by the generator.
+word_aliases:
+  git_ops: gitops
+
+# Tool names that override the derived <entity>_<verb> form. Two kinds of entry
+# live here: names carried over from stage 0 (`whoami`), and operations whose
+# derived names collide. Keys are the operationId; an operationId shared by both
+# documents is addressed as "<source>/<operationId>".
+rewrites:
+  systemVersion: system_version
+  systemStatus: system_status
+  systemInfo: system_info
+  SettingsInspect: settings_get
+  CurrentUserInspect: whoami
+  EndpointList: environment_list
+  EndpointInspect: environment_inspect
+  docker/SystemInfo: docker_system_info
+  docker/SystemVersion: docker_system_version
+  EndpointSnapshots: endpoint_snapshot_all
+  ImageGet: image_export
+
+# Operations without an operationId, keyed by "METHOD /path". The generator
+# fails when an unskipped operation has neither an operationId nor an entry.
+unnamed:
+  "POST /endpoint_groups": endpoint_group_create
+  "GET /endpoint_groups/{id}": endpoint_group_inspect
+  "POST /endpoints/{id}/docker/v2/browse/put": endpoint_docker_browse_put
+  "POST /endpoints/{id}/edge/jobs/{jobID}/logs": edge_job_task_logs_collect
+  "GET /endpoints/{id}/edge/stacks/{stackId}": edge_stack_environment_inspect
+  "GET /webhooks": webhook_list
+  "POST /webhooks": webhook_create
+  "DELETE /webhooks/{id}": webhook_delete
+  "POST /webhooks/{id}": webhook_update
+  "PUT /webhooks/{id}": webhook_replace
+
+# Path parameters renamed on the way into the tool input, so the Docker proxy
+# and the Portainer docker paths agree on one name.
+param_renames:
+  environmentId: environment
+
+# Tools with no single operation behind them: an escape hatch to a path the
+# catalog does not expose. They are declared rather than derived.
+extras:
+  - name: portainer_raw
+    toolset: raw
+    description: Call any Portainer API path directly (method, path, query, JSON body). Use it only for an operation that no other tool covers; the path must start with / and is appended to /api.
+    base: /api
+  - name: docker_raw
+    toolset: raw
+    description: Call any Docker Engine path through a Portainer environment (method, path, query, JSON body). Use it only for an operation that no other tool covers; the path is appended to /api/endpoints/{environment}/docker.
+    base: /api/endpoints/{environment}/docker
+  - name: k8s_raw
+    toolset: raw
+    description: Call any Portainer Kubernetes API path (method, path, query, JSON body). Use it only for an operation that no other tool covers; the path is appended to /api/kubernetes/{environment}.
+    base: /api/kubernetes/{environment}

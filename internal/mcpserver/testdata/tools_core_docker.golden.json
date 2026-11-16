@@ -1,0 +1,953 @@
+[
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Create a container",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "additionalProperties": true,
+          "description": "Container to create",
+          "type": "object"
+        },
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Assign the specified name to the container. Must match\n`/?[a-zA-Z0-9][a-zA-Z0-9_.-]+`.\n",
+          "pattern": "^/?[a-zA-Z0-9][a-zA-Z0-9_.-]+$",
+          "type": "string"
+        },
+        "platform": {
+          "default": "",
+          "description": "Platform in the format `os[/arch[/variant]]` used for image lookup.\n\nWhen specified, the daemon checks if the requested image is present\nin the local image cache with the given OS and Architecture, and\notherwise returns a `404` status.\n\nIf the option is not set, the host's native OS and Architecture are\nused to look up the image in the image cache. However, if no platform\nis passed and the given image does exist in the local image cache,\nbut its OS or architecture does not match, the container is created\nwith the available image, and a warning is added to the `Warnings`\nfield in the response, for example;\n\n    WARNING: The requested image's platform (linux/arm64/v8) does not\n             match the detected host platform (linux/amd64) and no\n             specific platform was requested\n",
+          "type": "string"
+        }
+      },
+      "required": [
+        "body",
+        "environment"
+      ],
+      "type": "object"
+    },
+    "name": "container_create"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Remove a container",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "force": {
+          "default": false,
+          "description": "If the container is running, kill it before removing it.",
+          "type": "boolean"
+        },
+        "id": {
+          "description": "ID or name of the container",
+          "type": "string"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        },
+        "link": {
+          "default": false,
+          "description": "Remove the specified link associated with the container.",
+          "type": "boolean"
+        },
+        "v": {
+          "default": false,
+          "description": "Remove anonymous volumes associated with the container.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "environment",
+        "id"
+      ],
+      "type": "object"
+    },
+    "name": "container_delete"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Create an exec instance Run a command inside a running container.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "additionalProperties": true,
+          "description": "Exec configuration",
+          "type": "object"
+        },
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "id": {
+          "description": "ID or name of container",
+          "type": "string"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "body",
+        "environment",
+        "id"
+      ],
+      "type": "object"
+    },
+    "name": "container_exec"
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Inspect a container Return low-level information about a container.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "id": {
+          "description": "ID or name of the container",
+          "type": "string"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        },
+        "size": {
+          "default": false,
+          "description": "Return the size of container as fields `SizeRw` and `SizeRootFs`",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "environment",
+        "id"
+      ],
+      "type": "object"
+    },
+    "name": "container_inspect",
+    "outputSchema": {
+      "additionalProperties": true,
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List containers Returns a list of containers. For details on the format, see the [inspect endpoint](#operation/ContainerInspect).",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "default": false,
+          "description": "Return all containers. By default, only running containers are shown.\n",
+          "type": "boolean"
+        },
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "filters": {
+          "description": "Filters to process on the container list, encoded as JSON (a\n`map[string][]string`). For example, `{\"status\": [\"paused\"]}` will\nonly return paused containers.\n\nAvailable filters:\n\n- `ancestor`=(`\u003cimage-name\u003e[:\u003ctag\u003e]`, `\u003cimage id\u003e`, or `\u003cimage@digest\u003e`)\n- `annotation=key` or `annotation=\"key=value\"` of a container annotation\n- `before`=(`\u003ccontainer id\u003e` or `\u003ccontainer name\u003e`)\n- `expose`=(`\u003cport\u003e[/\u003cproto\u003e]`|`\u003cstartport-endport\u003e/[\u003cproto\u003e]`)\n- `exited=\u003cint\u003e` containers with exit code of `\u003cint\u003e`\n- `health`=(`starting`|`healthy`|`unhealthy`|`none`)\n- `id=\u003cID\u003e` a container's ID\n- `isolation=`(`default`|`process`|`hyperv`) (Windows daemon only)\n- `is-task=`(`true`|`false`)\n- `label=key` or `label=\"key=value\"` of a container label\n- `name=\u003cname\u003e` a container's name\n- `network`=(`\u003cnetwork id\u003e` or `\u003cnetwork name\u003e`)\n- `publish`=(`\u003cport\u003e[/\u003cproto\u003e]`|`\u003cstartport-endport\u003e/[\u003cproto\u003e]`)\n- `since`=(`\u003ccontainer id\u003e` or `\u003ccontainer name\u003e`)\n- `status=`(`created`|`restarting`|`running`|`removing`|`paused`|`exited`|`dead`)\n- `volume`=(`\u003cvolume name\u003e` or `\u003cmount point destination\u003e`)\n",
+          "type": "string"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Return this number of most recently created containers, including\nnon-running ones.\n",
+          "type": "integer"
+        },
+        "size": {
+          "default": false,
+          "description": "Return the size of container as fields `SizeRw` and `SizeRootFs`.\n",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "environment"
+      ],
+      "type": "object"
+    },
+    "name": "container_list",
+    "outputSchema": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Get container logs Get `stdout` and `stderr` logs from a container.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "follow": {
+          "default": false,
+          "description": "Keep connection after returning logs.",
+          "type": "boolean"
+        },
+        "id": {
+          "description": "ID or name of the container",
+          "type": "string"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        },
+        "since": {
+          "default": 0,
+          "description": "Only return logs since this time, as a UNIX timestamp",
+          "type": "integer"
+        },
+        "stderr": {
+          "default": false,
+          "description": "Return logs from `stderr`",
+          "type": "boolean"
+        },
+        "stdout": {
+          "default": false,
+          "description": "Return logs from `stdout`",
+          "type": "boolean"
+        },
+        "tail": {
+          "default": "all",
+          "description": "Only return this number of log lines from the end of the logs.\nSpecify as an integer or `all` to output all log lines.\n",
+          "type": "string"
+        },
+        "timestamps": {
+          "default": false,
+          "description": "Add timestamps to every log line",
+          "type": "boolean"
+        },
+        "until": {
+          "default": 0,
+          "description": "Only return logs before this time, as a UNIX timestamp",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "environment",
+        "id"
+      ],
+      "type": "object"
+    },
+    "name": "container_logs"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Restart a container",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "id": {
+          "description": "ID or name of the container",
+          "type": "string"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        },
+        "signal": {
+          "description": "Signal to send to the container as an integer or string (e.g. `SIGINT`).\n",
+          "type": "string"
+        },
+        "t": {
+          "description": "Number of seconds to wait before killing the container",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "environment",
+        "id"
+      ],
+      "type": "object"
+    },
+    "name": "container_restart"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Start a container",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "detachKeys": {
+          "description": "Override the key sequence for detaching a container. Format is a\nsingle character `[a-Z]` or `ctrl-\u003cvalue\u003e` where `\u003cvalue\u003e` is one\nof: `a-z`, `@`, `^`, `[`, `,` or `_`.\n",
+          "type": "string"
+        },
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "id": {
+          "description": "ID or name of the container",
+          "type": "string"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "environment",
+        "id"
+      ],
+      "type": "object"
+    },
+    "name": "container_start"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Stop a container",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "id": {
+          "description": "ID or name of the container",
+          "type": "string"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        },
+        "signal": {
+          "description": "Signal to send to the container as an integer or string (e.g. `SIGINT`).\n",
+          "type": "string"
+        },
+        "t": {
+          "description": "Number of seconds to wait before killing the container",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "environment",
+        "id"
+      ],
+      "type": "object"
+    },
+    "name": "container_stop"
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Inspect an environment(endpoint) Retrieve details about an environment(endpoint). **Access policy**: restricted",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "excludeSnapshot": {
+          "description": "if true, the snapshot data won't be retrieved",
+          "type": "boolean"
+        },
+        "id": {
+          "description": "Environment(Endpoint) identifier",
+          "type": "integer"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "name": "environment_inspect",
+    "outputSchema": {
+      "additionalProperties": true,
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List environments(endpoints) List all environments(endpoints) based on the current user authorizations. Will return all environments(endpoints) if using an administrator or team leader account otherwise it will only return authorized environments(endpoints). **Access policy**: restricted",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "agentVersions": {
+          "description": "will return only environments with on of these agent versions",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "edgeAsync": {
+          "description": "if exists true show only edge async agents, false show only standard edge agents. if missing, will show both types (relevant only for edge agents)",
+          "type": "boolean"
+        },
+        "edgeCheckInPassedSeconds": {
+          "description": "if bigger then zero, show only edge agents that checked-in in the last provided seconds (relevant only for edge agents)",
+          "type": "number"
+        },
+        "edgeDeviceUntrusted": {
+          "description": "if true, show only untrusted edge agents, if false show only trusted edge agents (relevant only for edge agents)",
+          "type": "boolean"
+        },
+        "edgeGroupIds": {
+          "description": "List environments(endpoints) of these edge groups",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "edgeStackId": {
+          "description": "will return the environments of the specified edge stack",
+          "type": "integer"
+        },
+        "edgeStackStatus": {
+          "description": "only applied when edgeStackId exists. Filter the returned environments based on their deployment status in the stack (not the environment status!)",
+          "enum": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "type": "integer"
+        },
+        "endpointIds": {
+          "description": "will return only these environments(endpoints)",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "excludeEdgeGroupIds": {
+          "description": "Exclude environments(endpoints) of these edge groups",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "excludeGroupIds": {
+          "description": "Exclude environments of these groups",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "excludeIds": {
+          "description": "will exclude these environments(endpoints)",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "excludeSnapshots": {
+          "description": "if true, the snapshot data won't be retrieved",
+          "type": "boolean"
+        },
+        "groupIds": {
+          "description": "List environments(endpoints) of these groups",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Limit results to this value",
+          "type": "integer"
+        },
+        "name": {
+          "description": "will return only environments(endpoints) with this name",
+          "type": "string"
+        },
+        "order": {
+          "description": "Order sorted results by desc/asc",
+          "type": "string"
+        },
+        "outdated": {
+          "description": "If true, return only environments with an outdated agent",
+          "type": "boolean"
+        },
+        "platformTypes": {
+          "description": "Filter environments by platform type",
+          "items": {
+            "enum": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "search": {
+          "description": "Search query",
+          "type": "string"
+        },
+        "sort": {
+          "description": "Sort results by this value",
+          "enum": [
+            "Name",
+            "Group",
+            "Status",
+            "LastCheckIn",
+            "EdgeID",
+            "PlatformType",
+            "Health",
+            "Id"
+          ],
+          "type": "string"
+        },
+        "start": {
+          "description": "Start searching from",
+          "type": "integer"
+        },
+        "status": {
+          "description": "List environments(endpoints) by this status",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "tagIds": {
+          "description": "search environments(endpoints) with these tags (depends on tagsPartialMatch)",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "tagsPartialMatch": {
+          "description": "If true, will return environment(endpoint) which has one of tagIds, if false (or missing) will return only environments(endpoints) that has all the tags",
+          "type": "boolean"
+        },
+        "types": {
+          "description": "List environments(endpoints) of this type",
+          "items": {
+            "enum": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "name": "environment_list",
+    "outputSchema": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Remove an image Remove an image, along with any untagged parent images that were referenced by that image.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "force": {
+          "default": false,
+          "description": "Remove the image even if it is being used by stopped containers or has other tags",
+          "type": "boolean"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Image name or ID",
+          "type": "string"
+        },
+        "noprune": {
+          "default": false,
+          "description": "Do not delete untagged parent images",
+          "type": "boolean"
+        },
+        "platforms": {
+          "description": "Select platform-specific content to delete.\nRepeat the parameter to select multiple platforms.\nEach platform is a OCI platform encoded as a JSON string.\n",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "environment",
+        "name"
+      ],
+      "type": "object"
+    },
+    "name": "image_delete",
+    "outputSchema": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Inspect an image Return low-level information about an image.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        },
+        "manifests": {
+          "default": false,
+          "description": "Include Manifests in the image summary.\n\nThe `manifests` and `platform` options are mutually exclusive, and\nan error is produced if both are set.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Image name or id",
+          "type": "string"
+        },
+        "platform": {
+          "description": "JSON-encoded OCI platform to select the platform-variant.\nIf omitted, it defaults to any locally available platform,\nprioritizing the daemon's host platform.\n\nIf the daemon provides a multi-platform image store, this selects\nthe platform-variant to show inspect. If the image is\na single-platform image, or if the multi-platform image does not\nprovide a variant matching the given platform, an error is returned.\n\nThe `platform` and `manifests` options are mutually exclusive, and\nan error is produced if both are set.\n\nExample: `{\"os\": \"linux\", \"architecture\": \"arm\", \"variant\": \"v5\"}`",
+          "type": "string"
+        }
+      },
+      "required": [
+        "environment",
+        "name"
+      ],
+      "type": "object"
+    },
+    "name": "image_inspect",
+    "outputSchema": {
+      "additionalProperties": true,
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List Images Returns a list of images on the server. Note that it uses a different, smaller representation of an image than inspecting a single image.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "default": false,
+          "description": "Show all images. Only images from a final layer (no children) are shown by default.",
+          "type": "boolean"
+        },
+        "digests": {
+          "default": false,
+          "description": "Show digest information as a `RepoDigests` field on each image.",
+          "type": "boolean"
+        },
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "filters": {
+          "description": "A JSON encoded value of the filters (a `map[string][]string`) to\nprocess on the images list.\n\nAvailable filters:\n\n- `before`=(`\u003cimage-name\u003e[:\u003ctag\u003e]`,  `\u003cimage id\u003e` or `\u003cimage@digest\u003e`)\n- `dangling=true`\n- `label=key` or `label=\"key=value\"` of an image label\n- `reference`=(`\u003cimage-name\u003e[:\u003ctag\u003e]`)\n- `since`=(`\u003cimage-name\u003e[:\u003ctag\u003e]`,  `\u003cimage id\u003e` or `\u003cimage@digest\u003e`)\n- `until=\u003ctimestamp\u003e`\n",
+          "type": "string"
+        },
+        "identity": {
+          "default": false,
+          "description": "Include `Identity` in each manifest summary. Requires `manifests=1`.",
+          "type": "boolean"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        },
+        "manifests": {
+          "default": false,
+          "description": "Include `Manifests` in the image summary.",
+          "type": "boolean"
+        },
+        "shared-size": {
+          "default": false,
+          "description": "Compute and show shared size as a `SharedSize` field on each image.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "environment"
+      ],
+      "type": "object"
+    },
+    "name": "image_list",
+    "outputSchema": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "List networks Returns a list of networks. For details on the format, see the [network inspect endpoint](#operation/NetworkInspect).",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "environment": {
+          "description": "Portainer environment id that owns the Docker endpoint. Find it with environment_list.",
+          "type": "integer"
+        },
+        "filters": {
+          "description": "JSON encoded value of the filters (a `map[string][]string`) to process\non the networks list.\n\nAvailable filters:\n\n- `dangling=\u003cboolean\u003e` When set to `true` (or `1`), returns all\n   networks that are not in use by a container. When set to `false`\n   (or `0`), only networks that are in use by one or more\n   containers are returned.\n- `driver=\u003cdriver-name\u003e` Matches a network's driver.\n- `id=\u003cnetwork-id\u003e` Matches all or part of a network ID.\n- `label=\u003ckey\u003e` or `label=\u003ckey\u003e=\u003cvalue\u003e` of a network label.\n- `name=\u003cnetwork-name\u003e` Matches all or part of a network name.\n- `scope=[\"swarm\"|\"global\"|\"local\"]` Filters networks by scope (`swarm`, `global`, or `local`).\n- `type=[\"custom\"|\"builtin\"]` Filters networks by type. The `custom` keyword returns all user-defined networks.\n",
+          "type": "string"
+        },
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "environment"
+      ],
+      "type": "object"
+    },
+    "name": "network_list",
+    "outputSchema": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Retrieve Portainer settings Retrieve Portainer settings. **Access policy**: administrator",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "settings_get",
+    "outputSchema": {
+      "additionalProperties": true,
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Retrieve system info **Access policy**: authenticated",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "system_info",
+    "outputSchema": {
+      "additionalProperties": true,
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Check Portainer status Retrieve Portainer status **Access policy**: public",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "system_status",
+    "outputSchema": {
+      "additionalProperties": true,
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Check for portainer updates Check if portainer has an update available **Access policy**: authenticated",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "system_version",
+    "outputSchema": {
+      "additionalProperties": true,
+      "type": "object"
+    }
+  },
+  {
+    "annotations": {
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Inspect the current user user Retrieve details about the current user. User passwords are filtered out, and should never be accessible. **Access policy**: authenticated",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "instance": {
+          "description": "Name of a configured Portainer instance; defaults to the first one.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "whoami",
+    "outputSchema": {
+      "additionalProperties": true,
+      "type": "object"
+    }
+  }
+]
