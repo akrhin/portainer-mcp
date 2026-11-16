@@ -102,6 +102,16 @@ func TestArcaneCoversEveryOperation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("collect: %v", err)
 	}
+	// The mapping renames parameters, so a renamed path still answers for the
+	// operation the document names.
+	rawMapping, err := os.ReadFile(arcaneProfile.toolsets)
+	if err != nil {
+		t.Fatalf("mapping: %v", err)
+	}
+	var names mapping
+	if err := yaml.Unmarshal(rawMapping, &names); err != nil {
+		t.Fatalf("mapping: %v", err)
+	}
 	cat, err := buildProfile(arcaneProfile)
 	if err != nil {
 		t.Fatalf("build: %v", err)
@@ -120,7 +130,7 @@ func TestArcaneCoversEveryOperation(t *testing.T) {
 		}
 	}
 	for _, op := range ops {
-		key := op.method + " " + op.path
+		key := op.method + " " + renameParams(names, op.path)
 		if _, ok := have[key]; !ok {
 			t.Errorf("%s has no tool", key)
 			continue

@@ -72,6 +72,9 @@ type Operation struct {
 	Path   string `yaml:"path"`
 	// Body names the input property holding the request body.
 	Body string `yaml:"body,omitempty"`
+	// BodyFields names body fields taken as arguments of their own, for a body
+	// that is a plain object of scalars; Body stays empty then.
+	BodyFields []string `yaml:"body_fields,omitempty"`
 	// Form sends Body as multipart/form-data instead of JSON: a property that
 	// is an object with a filename becomes a file part, the rest become text.
 	Form bool `yaml:"form,omitempty"`

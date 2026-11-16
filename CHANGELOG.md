@@ -5,6 +5,26 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- A request body the document declares as a plain object of scalars is no longer
+  wrapped: its fields arrive as arguments of their own, so `settings_search` takes
+  `query` instead of `body: {query}`. 55 Arcane tools follow that shape; a body with a
+  nested object, an array or free-form keys keeps the `body` wrapper.
+- An answer larger than 24 KiB is paged even when it arrived whole: a top-level array
+  becomes `{items, _truncated, _total, _hint}`, a list under `data` keeps its envelope
+  and gains the counts. One answer now stays around six thousand tokens instead of
+  reaching forty kilobytes.
+- The one route that names its environment `environmentId`
+  (`GET /api/events/agent/{environmentId}`) exposes the argument as `id`, like every
+  other tool.
+
+### Fixed
+
+- `settings_search` is a read: it no longer carries `destructiveHint: true`.
+
 ## [0.4.0] - 2026-11-16
 
 ### Added

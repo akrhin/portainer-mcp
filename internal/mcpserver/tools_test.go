@@ -11,7 +11,10 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/akrhin/portainer-mcp/internal/arcane"
 	"github.com/akrhin/portainer-mcp/internal/catalog"
+	"github.com/akrhin/portainer-mcp/internal/config"
+	"github.com/akrhin/portainer-mcp/internal/portainer"
 )
 
 // testCall drives one tool over MCP against a stub API.
@@ -183,5 +186,156 @@ func TestTruncatedArrayPage(t *testing.T) {
 	})
 	if res.IsError || !strings.Contains(text(t, res), "truncated at") {
 		t.Fatalf("object answer = %q", text(t, res))
+	}
+}
+
+// TestFlatBodyFields covers a body that is a plain object of scalars: its
+// fields arrive as arguments of their own and travel back as a JSON body.
+func TestFlatBodyFields(t *testing.T) {
+	var got map[string]any
+	h := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/settings/search" {
+			t.Errorf("path = %q", r.URL.Path)
+		}
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true}`))
+	}
+
+	res, hits := testArcaneCall(t, h, "settings_search", map[string]any{"query": "backup"})
+	if hits != 1 {
+		t.Fatalf("hits = %d", hits)
+	}
+	if got["query"] != "backup" {
+		t.Errorf("body = %v, want the query field", got)
+	}
+	if _, ok := got["body"]; ok {
+		t.Errorf("body still wrapped: %v", got)
+	}
+	if text(t, res) != `{"success":true}` {
+		t.Errorf("answer = %s", text(t, res))
+	}
+}
+
+// TestFlatBodyFieldsRefuseMissing checks the required field of an inlined body
+// is still required.
+func TestFlatBodyFieldsRefuseMissing(t *testing.T) {
+	h := func(w http.ResponseWriter, r *http.Request) {
+		t.Error("the API must not be called without the required field")
+	}
+	cat, err := catalog.LoadArcane()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{
+		Instances: []config.Instance{{Name: "arcane", URL: "http://127.0.0.1:1", APIKey: "k"}},
+		Toolsets:  []string{"core", "admin"},
+	}
+	srv, err := New(cfg, cat, Options{Toolsets: []string{"core", "admin"}, Name: "arcane-mcp", Open: arcane.New, Exhaustive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := connect(t, srv).CallTool(context.Background(), &mcp.CallToolParams{Name: "settings_search", Arguments: map[string]any{}})
+	msg := ""
+	switch {
+	case err != nil:
+		msg = err.Error()
+	case res != nil && res.IsError:
+		msg = text(t, res)
+	}
+	if !strings.Contains(msg, "query") {
+		t.Fatalf("err = %v, result = %+v, want a missing query", err, res)
+	}
+	_ = h
+}
+
+// testArcaneCall drives one tool of the Arcane catalog against h.
+func testArcaneCall(t *testing.T, h http.HandlerFunc, name string, args map[string]any) (*mcp.CallToolResult, int) {
+	t.Helper()
+	hits := 0
+	srvHTTP := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		h(w, r)
+	}))
+	t.Cleanup(srvHTTP.Close)
+	cat, err := catalog.LoadArcane()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{
+		Instances: []config.Instance{{Name: "arcane", URL: srvHTTP.URL, APIKey: "k"}},
+		Toolsets:  []string{"core", "admin"},
+	}
+	srv, err := New(cfg, cat, Options{Toolsets: []string{"core", "admin"}, Name: "arcane-mcp", Open: arcane.New, Exhaustive: true})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	res, err := connect(t, srv).CallTool(context.Background(), &mcp.CallToolParams{Name: name, Arguments: args})
+	if err != nil {
+		t.Fatalf("call %s: %v", name, err)
+	}
+	return res, hits
+}
+
+// TestBoundedResultPagesLongLists covers an answer larger than maxAnswerBytes:
+// a list under "data" keeps its envelope, loses its tail and gains the counts.
+func TestBoundedResultPagesLongLists(t *testing.T) {
+	items := []any{}
+	for i := 0; i < 200; i++ {
+		items = append(items, map[string]any{"id": i, "description": strings.Repeat("x", 400)})
+	}
+	body := map[string]any{"$schema": "PaginatedRole.json", "data": items, "totalCount": len(items)}
+
+	res, ok := boundedResult(catalog.Tool{Name: "roles_list"}, body)
+	if !ok {
+		t.Fatal("a 80 KiB answer was left whole")
+	}
+	out := text(t, res)
+	if len(out) > maxAnswerBytes {
+		t.Fatalf("answer is %d bytes, over the %d budget", len(out), maxAnswerBytes)
+	}
+	page := res.StructuredContent.(map[string]any)
+	kept := page["data"].([]any)
+	if len(kept) == 0 || len(kept) >= len(items) {
+		t.Fatalf("kept %d of %d", len(kept), len(items))
+	}
+	if page["_truncated"] != true || page["_total"] != len(items) {
+		t.Fatalf("markers = %v %v", page["_truncated"], page["_total"])
+	}
+	if page["$schema"] != "PaginatedRole.json" {
+		t.Errorf("envelope lost: %v", page["$schema"])
+	}
+}
+
+// TestAnswerBudgetDropsStructuredContent covers a JSON object with no list to
+// page: it travels as text only, so a 20 KiB answer is still one clean payload.
+func TestAnswerBudgetDropsStructuredContent(t *testing.T) {
+	body := fmt.Sprintf(`{"blob":"%s"}`, strings.Repeat("x", 20000))
+	resp := &portainer.Response{Status: 200, ContentType: "application/json", Body: []byte(body)}
+	out := apiResult(catalog.Tool{Name: "roles_list"}, resp)
+	if out.StructuredContent != nil {
+		t.Errorf("structured content kept: the answer would travel twice")
+	}
+	if got := text(t, out); !strings.HasPrefix(got, `{"blob"`) {
+		t.Fatalf("answer = %.40s", got)
+	}
+}
+
+// TestBoundedResultPagesTopLevelArray covers an array answer with no envelope.
+func TestBoundedResultPagesTopLevelArray(t *testing.T) {
+	items := []any{}
+	for i := 0; i < 200; i++ {
+		items = append(items, map[string]any{"name": strings.Repeat("v", 400)})
+	}
+	res, ok := boundedResult(catalog.Tool{Name: "system_volume_backup_options_list"}, items)
+	if !ok {
+		t.Fatal("a large array was left whole")
+	}
+	page := res.StructuredContent.(map[string]any)
+	if page["_truncated"] != true || page["_total"] != 200 {
+		t.Fatalf("markers = %v %v", page["_truncated"], page["_total"])
+	}
+	if kept := page["items"].([]any); len(kept) == 0 || len(kept) >= 200 {
+		t.Fatalf("kept %d", len(kept))
 	}
 }

@@ -24,10 +24,14 @@ func (e *env) call(t catalog.Tool) handler {
 	for _, name := range portainer.PathParams(t.Operation.Path) {
 		pathParams[name] = true
 	}
+	bodyField := map[string]bool{}
+	for _, name := range t.Operation.BodyFields {
+		bodyField[name] = true
+	}
 	var query []string
 	props, _ := t.Input["properties"].(map[string]any)
 	for name := range props {
-		if name == "instance" || name == t.Operation.Body || pathParams[name] || name == streamTimeout {
+		if name == "instance" || name == t.Operation.Body || bodyField[name] || pathParams[name] || name == streamTimeout {
 			continue
 		}
 		if t.Operation.Raw && (name == "method" || name == "path" || name == "query") {
@@ -89,7 +93,23 @@ func (e *env) call(t catalog.Tool) handler {
 		var body []byte
 		var fields map[string]string
 		var files map[string]portainer.FilePart
-		if t.Operation.Body != "" {
+		if len(t.Operation.BodyFields) > 0 {
+			obj := make(map[string]any, len(t.Operation.BodyFields))
+			for _, name := range t.Operation.BodyFields {
+				v, ok := args[name]
+				if !ok || v == nil {
+					if required[name] {
+						return nil, fmt.Errorf("%s is required", name)
+					}
+					continue
+				}
+				obj[name] = v
+			}
+			body, err = json.Marshal(obj)
+			if err != nil {
+				return nil, fmt.Errorf("encode body: %w", err)
+			}
+		} else if t.Operation.Body != "" {
 			v, ok := args[t.Operation.Body]
 			if !ok || v == nil {
 				if required[t.Operation.Body] {
@@ -230,6 +250,17 @@ func formValue(v any) (string, error) {
 // arrayPage is how many elements of a cut JSON array answer a caller sees.
 const arrayPage = 50
 
+// maxAnswerBytes keeps one answer readable in a single call: a list longer than
+// this is paged even when the client did not cut it at MaxResponse. The budget
+// counts the answer twice, because a JSON answer travels both as text and as
+// structured content; 24 KiB in total sits under the 32 KiB a gateway forwards
+// whole and lands near six thousand tokens.
+const maxAnswerBytes = 24000
+
+// answerCopies is how many times one answer is sent: as text and, for JSON, as
+// structured content.
+const answerCopies = 2
+
 // unbounded refuses a streaming call before anything is sent: such a request
 // stays open until the client times out, and the model learns nothing from
 // waiting. The flags come from the catalog, not from a list kept here.
@@ -284,6 +315,17 @@ func apiResult(t catalog.Tool, resp *portainer.Response) *mcp.CallToolResult {
 	if resp.TimedOut && len(body) > 0 {
 		text += "\n…[stream read stopped at timeout_sec: raise it to read longer]"
 	}
+	if !resp.Truncated && answerCopies*len(text) > maxAnswerBytes {
+		if page, ok := boundedResult(t, structured); ok {
+			return page
+		}
+		// Nothing to page: the answer travels as text only, which halves it.
+		structured = nil
+		if len(text) > maxAnswerBytes {
+			text = text[:maxAnswerBytes]
+		}
+		text += fmt.Sprintf("\n…[cut to %d bytes: ask for a narrower filter or a smaller range]", len(text))
+	}
 	if resp.Truncated {
 		if page, ok := arrayPageResult(t, body); ok {
 			return page
@@ -294,6 +336,97 @@ func apiResult(t catalog.Tool, resp *portainer.Response) *mcp.CallToolResult {
 		Content:           []mcp.Content{&mcp.TextContent{Text: text}},
 		StructuredContent: structured,
 	}
+}
+
+// boundedResult pages a JSON answer larger than maxAnswerBytes: a top-level
+// array becomes the same page a cut array answers with, and a list under "data"
+// keeps the rest of its envelope and gains the counts. Anything else keeps its
+// shape and is cut as text.
+func boundedResult(t catalog.Tool, structured any) (*mcp.CallToolResult, bool) {
+	hint := func(kept, total int) string {
+		return fmt.Sprintf("%d items arrived, the first %d are shown: use %s with a narrower filter or pagination", total, kept, t.Name)
+	}
+	switch v := structured.(type) {
+	case []any:
+		page := map[string]any{"_truncated": true, "_total": len(v)}
+		kept := fitItems(len(v), func(k int) []byte {
+			page["items"] = v[:k]
+			page["_hint"] = hint(k, len(v))
+			return mustJSON(page)
+		})
+		if kept == len(v) || kept == 0 {
+			return nil, false
+		}
+		page["items"] = v[:kept]
+		page["_hint"] = hint(kept, len(v))
+		text, err := json.Marshal(page)
+		if err != nil {
+			return nil, false
+		}
+		return &mcp.CallToolResult{
+			Content:           []mcp.Content{&mcp.TextContent{Text: string(text)}},
+			StructuredContent: page,
+		}, true
+	case map[string]any:
+		data, ok := v["data"].([]any)
+		if !ok {
+			return nil, false
+		}
+		cut := deepCopyMap(v)
+		kept := fitItems(len(data), func(k int) []byte {
+			cut["data"] = data[:k]
+			cut["_truncated"] = true
+			cut["_total"] = len(data)
+			cut["_hint"] = hint(k, len(data))
+			return mustJSON(cut)
+		})
+		if kept == len(data) || kept == 0 {
+			return nil, false
+		}
+		cut["data"] = data[:kept]
+		cut["_hint"] = hint(kept, len(data))
+		text, err := json.Marshal(cut)
+		if err != nil {
+			return nil, false
+		}
+		return &mcp.CallToolResult{
+			Content:           []mcp.Content{&mcp.TextContent{Text: string(text)}},
+			StructuredContent: cut,
+		}, true
+	}
+	return nil, false
+}
+
+// fitItems is the largest count of the first items whose JSON fits the budget.
+func fitItems(n int, render func(k int) []byte) int {
+	lo, hi := 0, n
+	for lo < hi {
+		mid := (lo + hi + 1) / 2
+		if answerCopies*len(render(mid)) <= maxAnswerBytes {
+			lo = mid
+		} else {
+			hi = mid - 1
+		}
+	}
+	return lo
+}
+
+func mustJSON(v any) []byte {
+	out, err := json.Marshal(v)
+	if err != nil {
+		return []byte(strings.Repeat("x", maxAnswerBytes+1))
+	}
+	return out
+}
+
+// deepCopyMap copies the top level so a paged answer does not rewrite the
+// decoded body it came from.
+func deepCopyMap(in map[string]any) map[string]any {
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }
 
 // arrayPageResult answers the first elements of a cut array with the counts

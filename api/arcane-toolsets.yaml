@@ -110,6 +110,17 @@ rewrites:
   upload-system-backup: system_backup_upload
   upload-volume-backup: volume_backup_upload
 
+# The one path parameter the document calls environmentId is the same thing
+# every other operation calls id: one name for one notion.
+param_renames:
+  environmentId: id
+
+# A search is a POST that changes nothing.
+tool_overrides:
+  settings_search:
+    read_only: true
+    destructive: false
+
 # Three operations never return on their own: an event long-poll, the upgrade
 # progress feed and the event stream. They are read until timeout_sec instead
 # of being refused, so the call answers with what arrived.
