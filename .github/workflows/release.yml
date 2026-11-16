@@ -43,11 +43,3 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # A package pushed by GITHUB_TOKEN starts private even in a public repo, and
-      # an anonymous `docker pull` needs it public; both the release and the image
-      # exist to be used, so the workflow opens it once per release.
-      - name: make the container package public
-        run: gh api -X PATCH "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/portainer-mcp" -f visibility=public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
