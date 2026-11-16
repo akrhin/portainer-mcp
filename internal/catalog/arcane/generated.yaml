@@ -230,10 +230,8 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                dockerRunCommand:
+                    type: string
                 id:
                     description: Environment ID
                     type: string
@@ -241,7 +239,7 @@ toolsets:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
             required:
-                - body
+                - dockerRunCommand
                 - id
             type: object
           output:
@@ -251,6 +249,8 @@ toolsets:
             method: POST
             path: /api/agents/{id}/system/convert
             body: body
+            body_fields:
+                - dockerRunCommand
         - name: current_upgrade_job_list
           description: Get current upgrade job Get the latest upgrade job
           annotations:
@@ -896,15 +896,14 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+                targetVersion:
+                    description: Release version to upgrade to; overrides this instance's own version check
                     type: string
             required:
                 - id
@@ -913,6 +912,8 @@ toolsets:
             method: POST
             path: /api/agents/{id}/system/upgrade
             body: body
+            body_fields:
+                - targetVersion
         - name: upgrade_job_start
           description: Start upgrade job Upgrade the requested environments, or every enabled environment when none are given, with the manager last
           annotations:
@@ -1446,13 +1447,12 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 containerId:
                     description: Container ID
                     type: string
+                enabled:
+                    description: Whether auto-update is enabled for this container
+                    type: boolean
                 id:
                     description: Environment ID
                     type: string
@@ -1460,8 +1460,8 @@ toolsets:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
             required:
-                - body
                 - containerId
+                - enabled
                 - id
             type: object
           output:
@@ -1471,6 +1471,8 @@ toolsets:
             method: PUT
             path: /api/agents/{id}/containers/{containerId}/autoupdate
             body: body
+            body_fields:
+                - enabled
     - name: images
       tools:
         - name: build_image
@@ -2140,21 +2142,32 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
+                ignoreErrors:
+                    description: Continue patching when individual package updates fail
+                    type: boolean
                 imageId:
                     description: Image ID to patch
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                patchedTag:
+                    description: Explicit tag for the patched image
+                    type: string
+                scanId:
+                    description: Vulnerability scan ID to patch from; empty patches all outdated packages
+                    type: string
+                suffix:
+                    description: Suffix appended to the source tag for the patched image
+                    type: string
+                timeoutSeconds:
+                    description: Timeout for the patch operation in seconds
+                    format: int64
+                    type: integer
             required:
-                - body
                 - id
                 - imageId
             type: object
@@ -2165,6 +2178,12 @@ toolsets:
             method: POST
             path: /api/agents/{id}/images/{imageId}/patch
             body: body
+            body_fields:
+                - ignoreErrors
+                - patchedTag
+                - scanId
+                - suffix
+                - timeoutSeconds
         - name: image_patch_targets_list
           description: List image patch targets Retrieves scanned images with fixable vulnerability counts and their latest patch run
           annotations:
@@ -2470,19 +2489,18 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                uploadId:
+                    description: ID of a complete upload session
+                    type: string
             required:
-                - body
                 - id
+                - uploadId
             type: object
           output:
             additionalProperties: true
@@ -2491,6 +2509,8 @@ toolsets:
             method: POST
             path: /api/agents/{id}/images/upload
             body: body
+            body_fields:
+                - uploadId
         - name: image_usage_count
           description: Get image usage counts Get counts of images in use, unused, total, and total size
           annotations:
@@ -2858,10 +2878,6 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
@@ -2871,10 +2887,16 @@ toolsets:
                 name:
                     description: Image ID or image reference
                     type: string
+                repository:
+                    description: Target repository name
+                    type: string
+                tag:
+                    description: Target tag
+                    type: string
             required:
-                - body
                 - id
                 - name
+                - repository
             type: object
           output:
             additionalProperties: true
@@ -2883,6 +2905,9 @@ toolsets:
             method: POST
             path: /api/agents/{id}/images/{name}/tag
             body: body
+            body_fields:
+                - repository
+                - tag
     - name: volumes
       tools:
         - name: backup_files_list
@@ -2966,19 +2991,18 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                s3DestinationId:
+                    description: S3 destination to scan for existing volume backups
+                    type: string
             required:
-                - body
                 - id
+                - s3DestinationId
             type: object
           output:
             additionalProperties: true
@@ -2987,6 +3011,8 @@ toolsets:
             method: POST
             path: /api/agents/{id}/volumes/backups/discover
             body: body
+            body_fields:
+                - s3DestinationId
         - name: download_volume_backup
           description: Download volume backup
           annotations:
@@ -3049,22 +3075,22 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                name:
+                    description: New volume name
+                    minLength: 1
+                    type: string
                 volumeName:
                     description: Current volume name
                     type: string
             required:
-                - body
                 - id
+                - name
                 - volumeName
             type: object
           output:
@@ -3074,6 +3100,8 @@ toolsets:
             method: POST
             path: /api/agents/{id}/volumes/{volumeName}/rename
             body: body
+            body_fields:
+                - name
         - name: retained_volume_backup_s3_upload
           description: Upload volume backup Upload an existing local volume backup to the selected S3 destination
           annotations:
@@ -3086,20 +3114,19 @@ toolsets:
                 backupId:
                     description: Backup ID
                     type: string
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                s3DestinationId:
+                    description: S3 destination for the uploaded backup
+                    type: string
             required:
                 - backupId
-                - body
                 - id
+                - s3DestinationId
             type: object
           output:
             additionalProperties: true
@@ -3108,6 +3135,8 @@ toolsets:
             method: POST
             path: /api/agents/{id}/volumes/backups/{backupId}/upload
             body: body
+            body_fields:
+                - s3DestinationId
         - name: volume_backup_action
           description: Restore volume backup Restore a full volume backup, or selected files with action restorefiles
           annotations:
@@ -3161,15 +3190,20 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                destination:
+                    description: Optional destination override for this manual backup
+                    type: string
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
+                    type: string
+                policyId:
+                    description: Optional backup policy whose settings should be used
+                    type: string
+                s3DestinationId:
+                    description: Saved S3 destination for a manual remote backup
                     type: string
                 volumeName:
                     description: Volume name
@@ -3182,6 +3216,10 @@ toolsets:
             method: POST
             path: /api/agents/{id}/volumes/{volumeName}/backups
             body: body
+            body_fields:
+                - destination
+                - policyId
+                - s3DestinationId
         - name: volume_backup_delete
           description: Delete volume backup
           annotations:
@@ -3313,22 +3351,21 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                uploadId:
+                    description: ID of a complete upload session
+                    type: string
                 volumeName:
                     description: Volume name
                     type: string
             required:
-                - body
                 - id
+                - uploadId
                 - volumeName
             type: object
           output:
@@ -3338,6 +3375,8 @@ toolsets:
             method: POST
             path: /api/agents/{id}/volumes/{volumeName}/backups/upload
             body: body
+            body_fields:
+                - uploadId
         - name: volume_backups_list
           description: List volume backups
           annotations:
@@ -4067,19 +4106,21 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                parentPath:
+                    description: Folder relative to the workspace root that receives the file
+                    type: string
+                uploadId:
+                    description: ID of a complete upload session
+                    type: string
             required:
-                - body
                 - id
+                - uploadId
             type: object
           output:
             additionalProperties: true
@@ -4088,6 +4129,9 @@ toolsets:
             method: POST
             path: /api/agents/{id}/builds/workspace/upload
             body: body
+            body_fields:
+                - parentPath
+                - uploadId
         - name: build_workspace_list
           description: Get build workspace
           annotations:
@@ -4178,10 +4222,10 @@ toolsets:
                         - redeploy
                         - pull
                     type: string
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                build:
+                    type: boolean
+                forceRecreate:
+                    type: boolean
                 id:
                     description: Environment ID
                     type: string
@@ -4191,6 +4235,12 @@ toolsets:
                 projectId:
                     description: Project ID
                     type: string
+                pullPolicy:
+                    type: string
+                recreateVolumes:
+                    type: boolean
+                removeOrphans:
+                    type: boolean
             required:
                 - action
                 - id
@@ -4200,6 +4250,12 @@ toolsets:
             method: POST
             path: /api/agents/{id}/projects/{projectId}/deploy
             body: body
+            body_fields:
+                - build
+                - forceRecreate
+                - pullPolicy
+                - recreateVolumes
+                - removeOrphans
           default: true
         - name: destroy_project
           description: Destroy a project Destroy a Docker Compose project and optionally remove files/volumes
@@ -4210,10 +4266,6 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
@@ -4223,6 +4275,10 @@ toolsets:
                 projectId:
                     description: Project ID
                     type: string
+                removeFiles:
+                    type: boolean
+                removeVolumes:
+                    type: boolean
             required:
                 - id
                 - projectId
@@ -4234,6 +4290,9 @@ toolsets:
             method: DELETE
             path: /api/agents/{id}/projects/{projectId}
             body: body
+            body_fields:
+                - removeFiles
+                - removeVolumes
         - name: download_build_workspace_file
           description: Download build workspace file
           annotations:
@@ -4559,22 +4618,25 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                attached:
+                    type: boolean
+                color:
+                    type: string
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                name:
+                    type: string
                 projectId:
                     description: Project ID
                     type: string
             required:
-                - body
+                - attached
                 - id
+                - name
                 - projectId
             type: object
           output:
@@ -4584,6 +4646,10 @@ toolsets:
             method: PATCH
             path: /api/agents/{id}/projects/{projectId}/tags
             body: body
+            body_fields:
+                - attached
+                - color
+                - name
         - name: project_tags_list
           description: List project tags Get sorted, distinct project tag names
           annotations:
@@ -4840,15 +4906,16 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                composeContent:
+                    type: string
+                envContent:
+                    type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
             required:
-                - body
+                - composeContent
+                - envContent
             type: object
           output:
             additionalProperties: true
@@ -4857,6 +4924,9 @@ toolsets:
             method: POST
             path: /api/templates/default
             body: body
+            body_fields:
+                - composeContent
+                - envContent
         - name: sync_variables
           description: Sync global variables Push the effective global variable set to every environment now
           annotations:
@@ -5032,15 +5102,25 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                description:
+                    type: string
+                enabled:
+                    type: boolean
+                id:
+                    readOnly: true
+                    type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                lastFetchError:
+                    readOnly: true
+                    type: string
+                name:
+                    type: string
+                url:
+                    type: string
             required:
-                - body
+                - id
             type: object
           output:
             additionalProperties: true
@@ -5049,6 +5129,13 @@ toolsets:
             method: POST
             path: /api/templates/registries
             body: body
+            body_fields:
+                - description
+                - enabled
+                - id
+                - lastFetchError
+                - name
+                - url
         - name: template_registry_delete
           description: Delete a template registry
           annotations:
@@ -5368,10 +5455,6 @@ toolsets:
             properties:
                 backupId:
                     type: string
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
@@ -5386,6 +5469,8 @@ toolsets:
                 path:
                     description: Folder path relative to the backup root
                     type: string
+                recoveryKey:
+                    type: string
                 search:
                     description: Case-insensitive full-path search
                     type: string
@@ -5396,8 +5481,8 @@ toolsets:
                     type: integer
             required:
                 - backupId
-                - body
                 - id
+                - recoveryKey
             type: object
           output:
             additionalProperties: true
@@ -5406,6 +5491,8 @@ toolsets:
             method: POST
             path: /api/agents/{id}/backups/{backupId}/files/browse
             body: body
+            body_fields:
+                - recoveryKey
         - name: discover_system_backups
           description: Discover Arcane system backups in S3
           annotations:
@@ -5415,15 +5502,16 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                recoveryKey:
+                    type: string
+                s3DestinationId:
+                    type: string
             required:
-                - body
+                - recoveryKey
+                - s3DestinationId
             type: object
           output:
             additionalProperties: true
@@ -5432,6 +5520,9 @@ toolsets:
             method: POST
             path: /api/backups/discover
             body: body
+            body_fields:
+                - recoveryKey
+                - s3DestinationId
         - name: environment_backup_history_list
           description: List an environment's backup history
           annotations:
@@ -5571,15 +5662,56 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                accessKeyId:
+                    description: Access key ID; must not be empty
+                    type: string
+                bucket:
+                    description: Bucket that stores the backups; must not be empty
+                    type: string
+                createdAt:
+                    format: date-time
+                    readOnly: true
+                    type: string
+                endpoint:
+                    description: S3-compatible host and optional port, empty for AWS S3; an http:// or https:// prefix is replaced per useSsl
+                    type: string
+                forcePathStyle:
+                    description: Put the bucket in the path, as most self-hosted stores need; false uses virtual-hosted style
+                    type: boolean
+                id:
+                    readOnly: true
+                    type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                name:
+                    description: Display name of the destination; must not be empty
+                    minLength: 1
+                    type: string
+                prefix:
+                    description: Key prefix for Arcane's backups in the bucket; leading and trailing slashes are dropped
+                    type: string
+                region:
+                    description: Bucket region; required when endpoint is empty, otherwise empty signs requests for us-east-1
+                    type: string
+                secretAccessKey:
+                    description: Stored encrypted; required on create, empty on update keeps it if no connection field changes
+                    type: string
+                    writeOnly: true
+                secretConfigured:
+                    readOnly: true
+                    type: boolean
+                updatedAt:
+                    format: date-time
+                    readOnly: true
+                    type: string
+                useSsl:
+                    description: https or http for a custom endpoint; AWS S3 (no endpoint) always uses https
+                    type: boolean
             required:
-                - body
+                - createdAt
+                - id
+                - secretConfigured
             type: object
           output:
             additionalProperties: true
@@ -5588,6 +5720,20 @@ toolsets:
             method: POST
             path: /api/backups/s3/test
             body: body
+            body_fields:
+                - accessKeyId
+                - bucket
+                - createdAt
+                - endpoint
+                - forcePathStyle
+                - id
+                - name
+                - prefix
+                - region
+                - secretAccessKey
+                - secretConfigured
+                - updatedAt
+                - useSsl
         - name: s3_destination_create
           description: Create S3 destination
           annotations:
@@ -5597,15 +5743,56 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                accessKeyId:
+                    description: Access key ID; must not be empty
+                    type: string
+                bucket:
+                    description: Bucket that stores the backups; must not be empty
+                    type: string
+                createdAt:
+                    format: date-time
+                    readOnly: true
+                    type: string
+                endpoint:
+                    description: S3-compatible host and optional port, empty for AWS S3; an http:// or https:// prefix is replaced per useSsl
+                    type: string
+                forcePathStyle:
+                    description: Put the bucket in the path, as most self-hosted stores need; false uses virtual-hosted style
+                    type: boolean
+                id:
+                    readOnly: true
+                    type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                name:
+                    description: Display name of the destination; must not be empty
+                    minLength: 1
+                    type: string
+                prefix:
+                    description: Key prefix for Arcane's backups in the bucket; leading and trailing slashes are dropped
+                    type: string
+                region:
+                    description: Bucket region; required when endpoint is empty, otherwise empty signs requests for us-east-1
+                    type: string
+                secretAccessKey:
+                    description: Stored encrypted; required on create, empty on update keeps it if no connection field changes
+                    type: string
+                    writeOnly: true
+                secretConfigured:
+                    readOnly: true
+                    type: boolean
+                updatedAt:
+                    format: date-time
+                    readOnly: true
+                    type: string
+                useSsl:
+                    description: https or http for a custom endpoint; AWS S3 (no endpoint) always uses https
+                    type: boolean
             required:
-                - body
+                - createdAt
+                - id
+                - secretConfigured
             type: object
           output:
             additionalProperties: true
@@ -5614,6 +5801,20 @@ toolsets:
             method: POST
             path: /api/backups/s3
             body: body
+            body_fields:
+                - accessKeyId
+                - bucket
+                - createdAt
+                - endpoint
+                - forcePathStyle
+                - id
+                - name
+                - prefix
+                - region
+                - secretAccessKey
+                - secretConfigured
+                - updatedAt
+                - useSsl
         - name: s3_destination_delete
           description: Delete S3 destination
           annotations:
@@ -5787,15 +5988,13 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                recoveryKey:
+                    type: string
             required:
-                - body
+                - recoveryKey
             type: object
           output:
             additionalProperties: true
@@ -5804,6 +6003,8 @@ toolsets:
             method: PUT
             path: /api/backups/recovery/key
             body: body
+            body_fields:
+                - recoveryKey
         - name: sync_s3_destinations
           description: Sync S3 destinations Synchronize manager-owned S3 destinations to an agent
           annotations:
@@ -5879,20 +6080,30 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                destination:
+                    type: string
+                id:
+                    type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
-            required:
-                - body
+                policyId:
+                    type: string
+                recoveryKey:
+                    type: string
+                s3DestinationId:
+                    type: string
             type: object
           operation:
             method: POST
             path: /api/backups
             body: body
+            body_fields:
+                - destination
+                - id
+                - policyId
+                - recoveryKey
+                - s3DestinationId
           default: true
         - name: system_backup_delete
           description: Delete Arcane system backup
@@ -5905,19 +6116,16 @@ toolsets:
             properties:
                 backupId:
                     type: string
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                recoveryKey:
+                    type: string
             required:
                 - backupId
-                - body
                 - id
             type: object
           output:
@@ -5927,6 +6135,8 @@ toolsets:
             method: DELETE
             path: /api/agents/{id}/backups/{backupId}
             body: body
+            body_fields:
+                - recoveryKey
         - name: system_backup_policies_list
           description: Get Arcane system backup policies
           annotations:
@@ -5984,20 +6194,21 @@ toolsets:
             properties:
                 backupId:
                     type: string
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                recoveryKey:
+                    type: string
+                s3DestinationId:
+                    type: string
             required:
                 - backupId
-                - body
                 - id
+                - recoveryKey
+                - s3DestinationId
             type: object
           output:
             additionalProperties: true
@@ -6006,6 +6217,9 @@ toolsets:
             method: POST
             path: /api/agents/{id}/backups/{backupId}/upload
             body: body
+            body_fields:
+                - recoveryKey
+                - s3DestinationId
         - name: system_backups_list
           description: List Arcane system backups
           annotations:
@@ -6281,15 +6495,75 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                authType:
+                    type: string
+                commitAuthorEmail:
+                    type: string
+                commitAuthorName:
+                    type: string
+                createdAt:
+                    format: date-time
+                    readOnly: true
+                    type: string
+                description:
+                    type: string
+                enabled:
+                    type: boolean
+                hasSigningKey:
+                    readOnly: true
+                    type: boolean
+                hasSshKey:
+                    readOnly: true
+                    type: boolean
+                hasToken:
+                    readOnly: true
+                    type: boolean
+                id:
+                    readOnly: true
+                    type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                name:
+                    type: string
+                provider:
+                    description: Forge used to build web links; empty detects it from the URL host
+                    enum:
+                        - ""
+                        - github
+                        - gitlab
+                        - gitea
+                        - bitbucket
+                    type: string
+                signingKey:
+                    type: string
+                    writeOnly: true
+                signingKeyPassphrase:
+                    type: string
+                    writeOnly: true
+                sshHostKeyVerification:
+                    type: string
+                sshKey:
+                    type: string
+                    writeOnly: true
+                token:
+                    type: string
+                    writeOnly: true
+                updatedAt:
+                    format: date-time
+                    readOnly: true
+                    type: string
+                url:
+                    type: string
+                username:
+                    type: string
             required:
-                - body
+                - createdAt
+                - hasSigningKey
+                - hasSshKey
+                - hasToken
+                - id
+                - updatedAt
             type: object
           output:
             additionalProperties: true
@@ -6298,6 +6572,27 @@ toolsets:
             method: POST
             path: /api/gitops/repositories
             body: body
+            body_fields:
+                - authType
+                - commitAuthorEmail
+                - commitAuthorName
+                - createdAt
+                - description
+                - enabled
+                - hasSigningKey
+                - hasSshKey
+                - hasToken
+                - id
+                - name
+                - provider
+                - signingKey
+                - signingKeyPassphrase
+                - sshHostKeyVerification
+                - sshKey
+                - token
+                - updatedAt
+                - url
+                - username
         - name: git_repository_delete
           description: Delete a git repository Delete a git repository configuration by ID
           annotations:
@@ -6752,22 +7047,23 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                strategy:
+                    enum:
+                        - use_arcane
+                        - use_repository
+                    type: string
                 syncId:
                     description: Sync ID
                     type: string
             required:
-                - body
                 - id
+                - strategy
                 - syncId
             type: object
           output:
@@ -6777,6 +7073,8 @@ toolsets:
             method: POST
             path: /api/agents/{id}/gitops/syncs/{syncId}/backup/resolve
             body: body
+            body_fields:
+                - strategy
         - name: sync_git_repositories
           description: Sync git repositories Sync git repositories from a manager to this agent instance
           annotations:
@@ -7048,10 +7346,9 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                force:
+                    description: Leave even as a manager, which can cost the swarm its quorum
+                    type: boolean
                 id:
                     description: Environment ID
                     type: string
@@ -7059,7 +7356,6 @@ toolsets:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
             required:
-                - body
                 - id
             type: object
           output:
@@ -7069,6 +7365,8 @@ toolsets:
             method: POST
             path: /api/agents/{id}/swarm/leave
             body: body
+            body_fields:
+                - force
         - name: reconcile_swarm_node_agents
           description: Reconcile swarm node agent bindings
           annotations:
@@ -7108,19 +7406,27 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                composeContent:
+                    type: string
+                envContent:
+                    description: Content of the stack's .env file
+                    type: string
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                name:
+                    description: Stack name (namespace)
+                    type: string
+                overrideContent:
+                    description: Compose override merged over composeContent
+                    type: string
             required:
-                - body
+                - composeContent
                 - id
+                - name
             type: object
           output:
             additionalProperties: true
@@ -7129,6 +7435,11 @@ toolsets:
             method: POST
             path: /api/agents/{id}/swarm/stacks/config/render
             body: body
+            body_fields:
+                - composeContent
+                - envContent
+                - name
+                - overrideContent
         - name: swarm_config_create
           description: Create swarm config
           annotations:
@@ -7387,19 +7698,20 @@ toolsets:
                     enum:
                         - rotate
                     type: string
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                rotateManagerToken:
+                    description: Rotate the manager token; both rotate when neither flag is set
+                    type: boolean
+                rotateWorkerToken:
+                    description: Rotate the worker token; both rotate when neither flag is set
+                    type: boolean
             required:
                 - action
-                - body
                 - id
             type: object
           output:
@@ -7409,6 +7721,9 @@ toolsets:
             method: POST
             path: /api/agents/{id}/swarm/join/tokens
             body: body
+            body_fields:
+                - rotateManagerToken
+                - rotateWorkerToken
         - name: swarm_join_tokens_list
           description: Get swarm join tokens
           annotations:
@@ -7506,10 +7821,9 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                environmentId:
+                    description: Visible environment to attach; it must report this swarm node
+                    type: string
                 id:
                     description: Environment ID
                     type: string
@@ -7519,8 +7833,14 @@ toolsets:
                 nodeId:
                     description: Node ID
                     type: string
+                rebind:
+                    description: Move an existing binding of the node or environment instead of failing
+                    type: boolean
+                replaceDeployment:
+                    description: Also delete the dedicated agent environment Arcane deployed for this node
+                    type: boolean
             required:
-                - body
+                - environmentId
                 - id
                 - nodeId
             type: object
@@ -7531,6 +7851,10 @@ toolsets:
             method: PUT
             path: /api/agents/{id}/swarm/nodes/{nodeId}/agent/binding
             body: body
+            body_fields:
+                - environmentId
+                - rebind
+                - replaceDeployment
         - name: swarm_node_agent_deployment_delete
           description: Remove a dedicated swarm node agent registration
           annotations:
@@ -8087,22 +8411,23 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                replicas:
+                    description: Replicas, or completions for a replicated job
+                    format: int64
+                    minimum: 0
+                    type: integer
                 serviceId:
                     description: Service ID
                     type: string
             required:
-                - body
                 - id
+                - replicas
                 - serviceId
             type: object
           output:
@@ -8112,6 +8437,8 @@ toolsets:
             method: PATCH
             path: /api/agents/{id}/swarm/services/{serviceId}
             body: body
+            body_fields:
+                - replicas
         - name: swarm_service_tasks_list
           description: List tasks for a swarm service
           annotations:
@@ -8631,19 +8958,18 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                key:
+                    description: Unlock key of the locked swarm
+                    type: string
             required:
-                - body
                 - id
+                - key
             type: object
           output:
             additionalProperties: true
@@ -8652,6 +8978,8 @@ toolsets:
             method: POST
             path: /api/agents/{id}/swarm/unlock
             body: body
+            body_fields:
+                - key
         - name: up_swarm_stack
           description: Bring up swarm stack
           annotations:
@@ -8691,19 +9019,22 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                force:
+                    description: Also remove volumes created by the YAML
+                    type: boolean
                 id:
                     description: Environment ID
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                yaml:
+                    description: Kubernetes YAML to tear down
+                    minLength: 1
+                    type: string
             required:
-                - body
                 - id
+                - yaml
             type: object
           output:
             additionalProperties: true
@@ -8712,6 +9043,9 @@ toolsets:
             method: POST
             path: /api/agents/{id}/podman/kube/down
             body: body
+            body_fields:
+                - force
+                - yaml
         - name: generate_podman_kube
           description: Generate kube YAML Generate Kubernetes YAML from pods, containers, or volumes
           annotations:
@@ -8816,10 +9150,6 @@ toolsets:
                         - unpause
                         - kill
                     type: string
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
@@ -8829,6 +9159,13 @@ toolsets:
                 podId:
                     description: Pod name or ID
                     type: string
+                signal:
+                    description: Signal sent on kill
+                    type: string
+                timeout:
+                    description: Seconds to wait before killing the pod on stop
+                    format: int64
+                    type: integer
             required:
                 - action
                 - id
@@ -8841,6 +9178,9 @@ toolsets:
             method: POST
             path: /api/agents/{id}/podman/pods/{podId}
             body: body
+            body_fields:
+                - signal
+                - timeout
         - name: podman_pod_create
           description: Create pod
           annotations:
@@ -9676,19 +10016,26 @@ toolsets:
                         - ignore
                         - unignore
                     type: string
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                fixAvailable:
+                    type: boolean
                 id:
                     description: Environment ID
+                    type: string
+                imageName:
+                    examples:
+                        - nginx
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                search:
+                    type: string
+                severity:
+                    examples:
+                        - CRITICAL,HIGH
+                    type: string
             required:
                 - action
-                - body
                 - id
             type: object
           output:
@@ -9698,6 +10045,11 @@ toolsets:
             method: POST
             path: /api/agents/{id}/vulnerabilities/ignored/bulk
             body: body
+            body_fields:
+                - fixAvailable
+                - imageName
+                - search
+                - severity
         - name: environment_vulnerabilities_list
           description: List environment vulnerabilities Retrieves paginated vulnerabilities across all scanned images in the environment
           annotations:
@@ -10806,15 +11158,20 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                currentPassword:
+                    description: Current password of the user (required for non-OIDC users)
+                    type: string
+                    writeOnly: true
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                newPassword:
+                    description: New password for the user
+                    minLength: 8
+                    type: string
+                    writeOnly: true
             required:
-                - body
+                - newPassword
             type: object
           output:
             additionalProperties: true
@@ -10823,6 +11180,9 @@ toolsets:
             method: POST
             path: /api/auth/password
             body: body
+            body_fields:
+                - currentPassword
+                - newPassword
         - name: container_update
           description: Update a single container Pull the latest image and apply the appropriate update strategy for a specific container
           annotations:
@@ -10909,15 +11269,27 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                hostname:
+                    description: Hostname of the enrolling agent
+                    maxLength: 253
+                    type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                requestId:
+                    description: Random ID the agent reuses on every retry of one enrollment so a lost reply can be recovered
+                    maxLength: 128
+                    type: string
+                swarmClusterId:
+                    description: Swarm cluster ID when the agent runs on an active swarm node
+                    maxLength: 64
+                    type: string
+                swarmNodeId:
+                    description: Swarm node ID when the agent runs on an active swarm node
+                    maxLength: 64
+                    type: string
             required:
-                - body
+                - hostname
             type: object
           output:
             additionalProperties: true
@@ -10926,6 +11298,11 @@ toolsets:
             method: POST
             path: /api/agents/enroll
             body: body
+            body_fields:
+                - hostname
+                - requestId
+                - swarmClusterId
+                - swarmNodeId
         - name: enrollment_token_create
           description: Create an enrollment token Create a token agents use to register themselves.
           annotations:
@@ -10935,15 +11312,22 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                maxUses:
+                    description: Maximum number of enrollments; absent or null means unlimited
+                    format: int64
+                    maximum: 10000
+                    minimum: 1
+                    type: integer
+                name:
+                    description: Enrollment token name
+                    maxLength: 100
+                    minLength: 1
+                    type: string
             required:
-                - body
+                - name
             type: object
           output:
             additionalProperties: true
@@ -10952,6 +11336,9 @@ toolsets:
             method: POST
             path: /api/enrollment-tokens
             body: body
+            body_fields:
+                - maxUses
+                - name
         - name: enrollment_token_delete
           description: Revoke an enrollment token
           annotations:
@@ -11088,10 +11475,6 @@ toolsets:
                         - run
                         - restart
                     type: string
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     description: Environment ID
                     type: string
@@ -11102,15 +11485,20 @@ toolsets:
                     description: Job ID
                     minLength: 1
                     type: string
+                runId:
+                    type: string
             required:
                 - action
                 - id
                 - jobId
+                - runId
             type: object
           operation:
             method: POST
             path: /api/agents/{id}/jobs/{jobId}
             body: body
+            body_fields:
+                - runId
         - name: job_run_action
           description: Retry, cancel, or acknowledge a job run
           annotations:
@@ -11252,18 +11640,33 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                autoHealInterval:
+                    type: string
+                autoUpdateInterval:
+                    type: string
+                dockerClientRefreshInterval:
+                    type: string
+                environmentHealthInterval:
+                    type: string
+                eventCleanupInterval:
+                    type: string
+                expiredSessionsCleanupInterval:
+                    type: string
                 id:
                     description: Environment ID
+                    type: string
+                imageAutoPatchInterval:
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                pollingInterval:
+                    type: string
+                scheduledPruneInterval:
+                    type: string
+                vulnerabilityScanInterval:
+                    type: string
             required:
-                - body
                 - id
             type: object
           output:
@@ -11273,6 +11676,17 @@ toolsets:
             method: PATCH
             path: /api/agents/{id}/jobs/schedules
             body: body
+            body_fields:
+                - autoHealInterval
+                - autoUpdateInterval
+                - dockerClientRefreshInterval
+                - environmentHealthInterval
+                - eventCleanupInterval
+                - expiredSessionsCleanupInterval
+                - imageAutoPatchInterval
+                - pollingInterval
+                - scheduledPruneInterval
+                - vulnerabilityScanInterval
         - name: jobs_list
           description: List all background jobs Get status, schedule, and metadata for all background jobs
           annotations:
@@ -11306,15 +11720,24 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                password:
+                    description: Password of the user
+                    minLength: 1
+                    type: string
+                    writeOnly: true
+                username:
+                    description: Username of the user
+                    examples:
+                        - admin
+                    maxLength: 255
+                    minLength: 1
+                    type: string
             required:
-                - body
+                - password
+                - username
             type: object
           output:
             additionalProperties: true
@@ -11323,6 +11746,9 @@ toolsets:
             method: POST
             path: /api/auth/login
             body: body
+            body_fields:
+                - password
+                - username
         - name: logout
           description: Logout Clear authentication session
           annotations:
@@ -11332,13 +11758,13 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                refreshToken:
+                    description: Refresh token whose session is revoked even when the access token has expired
+                    type: string
+                    writeOnly: true
             type: object
           output:
             additionalProperties: true
@@ -11347,6 +11773,8 @@ toolsets:
             method: POST
             path: /api/auth/logout
             body: body
+            body_fields:
+                - refreshToken
         - name: my_avatar_delete
           description: Delete own avatar Remove the current user's custom profile picture, reverting to the default avatar.
           annotations:
@@ -11689,13 +12117,13 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                refreshToken:
+                    description: Refresh token used to obtain a new access token; browsers send it as a cookie instead
+                    type: string
+                    writeOnly: true
             type: object
           output:
             additionalProperties: true
@@ -11704,6 +12132,8 @@ toolsets:
             method: POST
             path: /api/auth/refresh
             body: body
+            body_fields:
+                - refreshToken
         - name: run_updater
           description: Run updater Apply pending container updates
           annotations:
@@ -11799,21 +12229,19 @@ toolsets:
         - name: settings_search
           description: Search settings Search settings categories and individual settings by query
           annotations:
-            readOnlyHint: false
-            destructiveHint: true
+            readOnlyHint: true
+            destructiveHint: false
             openWorldHint: false
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                query:
+                    type: string
             required:
-                - body
+                - query
             type: object
           output:
             additionalProperties: true
@@ -11822,6 +12250,8 @@ toolsets:
             method: POST
             path: /api/settings/search
             body: body
+            body_fields:
+                - query
         - name: settings_update
           description: Update app-wide settings Update the app-wide settings owned by the manager. Environment and authentication settings are rejected
           annotations:
@@ -11957,10 +12387,13 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                chunkSize:
+                    description: Chunk size in bytes; server default and bounds apply
+                    format: int64
+                    type: integer
+                filename:
+                    description: Original filename; validated per kind
+                    type: string
                 id:
                     type: string
                 instance:
@@ -11972,10 +12405,16 @@ toolsets:
                         - volume-backup
                         - build-workspace
                     type: string
+                size:
+                    description: Total file size in bytes
+                    format: int64
+                    minimum: 1
+                    type: integer
             required:
-                - body
+                - filename
                 - id
                 - kind
+                - size
             type: object
           output:
             additionalProperties: true
@@ -11984,6 +12423,10 @@ toolsets:
             method: POST
             path: /api/agents/{id}/uploads/{kind}
             body: body
+            body_fields:
+                - chunkSize
+                - filename
+                - size
         - name: upload_session_delete
           description: Delete an upload session Abort an upload session and discard its received chunks
           annotations:
@@ -12255,7 +12698,7 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                environmentId:
+                id:
                     description: Environment ID
                     type: string
                 includeTotal:
@@ -12291,14 +12734,14 @@ toolsets:
                     description: Filter by event type (exact type or category prefix, comma-separated)
                     type: string
             required:
-                - environmentId
+                - id
             type: object
           output:
             additionalProperties: true
             type: object
           operation:
             method: GET
-            path: /api/events/agent/{environmentId}
+            path: /api/events/agent/{id}
         - name: list_events
           description: List events Get a paginated list of system events
           annotations:
@@ -12453,15 +12896,13 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                transactionId:
+                    type: string
             required:
-                - body
+                - transactionId
             type: object
           output:
             additionalProperties: true
@@ -12470,6 +12911,8 @@ toolsets:
             method: POST
             path: /api/auth/mfa/passkey/begin
             body: body
+            body_fields:
+                - transactionId
         - name: begin_passkey_registration
           description: Begin passkey registration
           annotations:
@@ -12555,15 +12998,18 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                codeVerifier:
+                    maxLength: 43
+                    minLength: 43
+                    type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                transactionId:
+                    type: string
             required:
-                - body
+                - codeVerifier
+                - transactionId
             type: object
           output:
             additionalProperties: true
@@ -12572,6 +13018,9 @@ toolsets:
             method: POST
             path: /api/auth/passkey/mobile/exchange
             body: body
+            body_fields:
+                - codeVerifier
+                - transactionId
         - name: exchange_oidc_device_token
           description: Exchange device code for tokens Exchange a device code for authentication tokens
           annotations:
@@ -12581,15 +13030,13 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                deviceCode:
+                    type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
             required:
-                - body
+                - deviceCode
             type: object
           output:
             additionalProperties: true
@@ -12598,6 +13045,8 @@ toolsets:
             method: POST
             path: /api/oidc/device/token
             body: body
+            body_fields:
+                - deviceCode
         - name: finish_mobile_passkey_login
           description: Finish mobile passkey login Validate a browser assertion and create a one-time mobile exchange
           annotations:
@@ -12737,15 +13186,18 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                code:
+                    type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                mobileRedirectUri:
+                    type: string
+                state:
+                    type: string
             required:
-                - body
+                - code
+                - state
             type: object
           output:
             additionalProperties: true
@@ -12754,6 +13206,10 @@ toolsets:
             method: POST
             path: /api/oidc/callback
             body: body
+            body_fields:
+                - code
+                - mobileRedirectUri
+                - state
         - name: initiate_oidc_device_auth
           description: Initiate OIDC device authorization Start the device authorization flow for CLI authentication
           annotations:
@@ -12824,15 +13280,15 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                mobileRedirectUri:
+                    type: string
+                redirectUri:
+                    type: string
             required:
-                - body
+                - redirectUri
             type: object
           output:
             additionalProperties: true
@@ -12841,6 +13297,9 @@ toolsets:
             method: POST
             path: /api/oidc/url
             body: body
+            body_fields:
+                - mobileRedirectUri
+                - redirectUri
         - name: oidc_config_list
           description: Get OIDC config Get the OIDC client configuration
           annotations:
@@ -12869,15 +13328,43 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                claimValue:
+                    description: OIDC claim value that triggers this mapping
+                    examples:
+                        - docker-admins
+                    type: string
+                createdAt:
+                    format: date-time
+                    readOnly: true
+                    type: string
+                environmentId:
+                    description: Environment ID to scope the assignment to; omit for a global assignment
+                    type: string
+                id:
+                    description: Unique identifier of the mapping
+                    readOnly: true
+                    type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                roleId:
+                    description: Role to assign when the claim matches
+                    type: string
+                source:
+                    description: 'Origin: manual rows are editable via UI/API; env rows come from ARCANE_OIDC_ROLE_MAPPINGS and are read-only'
+                    enum:
+                        - manual
+                        - env
+                    readOnly: true
+                    type: string
+                updatedAt:
+                    format: date-time
+                    readOnly: true
+                    type: string
             required:
-                - body
+                - createdAt
+                - id
+                - source
             type: object
           output:
             additionalProperties: true
@@ -12886,6 +13373,14 @@ toolsets:
             method: POST
             path: /api/oidc/mappings
             body: body
+            body_fields:
+                - claimValue
+                - createdAt
+                - environmentId
+                - id
+                - roleId
+                - source
+                - updatedAt
         - name: oidc_role_mapping_delete
           description: Delete an OIDC role mapping
           annotations:
@@ -13044,15 +13539,15 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                password:
+                    minLength: 1
+                    type: string
+                    writeOnly: true
             required:
-                - body
+                - password
             type: object
           output:
             additionalProperties: true
@@ -13061,6 +13556,8 @@ toolsets:
             method: POST
             path: /api/auth/me/passkeys/reauth/password
             body: body
+            body_fields:
+                - password
         - name: regenerate_passkey_recovery_codes
           description: Regenerate MFA recovery codes
           annotations:
@@ -13096,18 +13593,18 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
                 id:
                     type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                name:
+                    maxLength: 128
+                    minLength: 1
+                    type: string
             required:
-                - body
                 - id
+                - name
             type: object
           output:
             additionalProperties: true
@@ -13116,6 +13613,8 @@ toolsets:
             method: PATCH
             path: /api/auth/me/passkeys/{id}
             body: body
+            body_fields:
+                - name
         - name: use_passkey_recovery_code
           description: Use an MFA recovery code Consume one recovery code for a pending MFA transaction
           annotations:
@@ -13125,15 +13624,16 @@ toolsets:
           input:
             additionalProperties: false
             properties:
-                body:
-                    additionalProperties: true
-                    description: JSON request body, passed to the API unchanged.
-                    type: object
+                code:
+                    type: string
                 instance:
                     description: Name of a configured Arcane server; defaults to the first one.
                     type: string
+                transactionId:
+                    type: string
             required:
-                - body
+                - code
+                - transactionId
             type: object
           output:
             additionalProperties: true
@@ -13142,6 +13642,9 @@ toolsets:
             method: POST
             path: /api/auth/mfa/recovery
             body: body
+            body_fields:
+                - code
+                - transactionId
     - name: raw
       tools:
         - name: arcane_raw

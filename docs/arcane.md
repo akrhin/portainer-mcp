@@ -65,9 +65,15 @@ An operation whose document names `application/octet-stream` as its only request
 as `upload_chunk`, takes `{"content": "text"}` or `{"base64": "..."}` and sends the bytes
 unchanged: the whole file never has to become a JSON string of escaped characters.
 
+A body the document declares as a plain object of scalars is not wrapped: `settings_search`
+takes `query`. A body with nested objects or free-form keys keeps the `body` wrapper, so
+the model passes it unchanged.
+
 Arcane addresses every resource through an agent: paths read
 `/api/agents/{id}/containers/{containerId}`, where `id` is the environment id from
-`environments_list`. Container actions are one tool, `container_action`, whose `action` argument selects
+`environments_list`. The document spells that parameter `id` everywhere except the
+events route, which calls it `environmentId`; the catalog renames it, so every tool
+takes `id`. Container actions are one tool, `container_action`, whose `action` argument selects
 start, stop, restart, kill, pause or unpause; projects work the same way through
 `project_action`.
 

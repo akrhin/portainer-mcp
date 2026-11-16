@@ -100,8 +100,9 @@ type operation struct {
 	body        bool
 	bodyReq     bool
 	bodyDesc    string
-	form        bool // the body is multipart/form-data only
-	binary      bool // the body is raw bytes of a named media type
+	bodyProps   []param // the body is a flat object: its fields are the arguments
+	form        bool    // the body is multipart/form-data only
+	binary      bool    // the body is raw bytes of a named media type
 	resp        map[string]any
 }
 
@@ -510,6 +511,9 @@ func parseOp(m mapping, sp *spec, method, path string, raw map[string]any, itemP
 		op.bodyDesc = str(rb["description"])
 		op.form = formOnly(rb)
 		op.binary = binaryOnly(rb)
+		if !op.form && !op.binary {
+			op.bodyProps = flatBody(sp, rb)
+		}
 	}
 
 	if resp, ok := raw["responses"].(map[string]any); ok {
@@ -518,6 +522,62 @@ func parseOp(m mapping, sp *spec, method, path string, raw map[string]any, itemP
 		}
 	}
 	return op, nil
+}
+
+// flatBody lists the fields of a request body that is a plain object of
+// scalars, so the tool takes them as its own arguments instead of a body
+// wrapper: {query: "backup"} rather than {body: {query: "backup"}}. A body with
+// a nested object, an array or free-form keys keeps the wrapper.
+func flatBody(sp *spec, rb map[string]any) []param {
+	content, _ := rb["content"].(map[string]any)
+	media, _ := content["application/json"].(map[string]any)
+	if media == nil {
+		return nil
+	}
+	schema, _ := media["schema"].(map[string]any)
+	if schema == nil {
+		return nil
+	}
+	schema = resolve(sp, schema)
+	if str(schema["type"]) != "object" || schema["additionalProperties"] != false {
+		return nil
+	}
+	props, _ := schema["properties"].(map[string]any)
+	if len(props) == 0 {
+		return nil
+	}
+	required, _ := schema["required"].([]any)
+	req := map[string]bool{}
+	for _, v := range required {
+		if name, ok := v.(string); ok {
+			req[name] = true
+		}
+	}
+	out := make([]param, 0, len(props))
+	for _, name := range sortedKeys(props) {
+		field, _ := props[name].(map[string]any)
+		if field == nil {
+			return nil
+		}
+		field = resolve(sp, field)
+		switch str(field["type"]) {
+		case "string", "integer", "number", "boolean":
+		default:
+			return nil
+		}
+		out = append(out, param{name: name, required: req[name], schema: field})
+	}
+	return out
+}
+
+// sortedKeys keeps the generated schema stable from run to run.
+func sortedKeys(m map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // resolve follows a $ref inside the document, so a parameter or a request body
@@ -630,7 +690,30 @@ func buildTool(m mapping, op *operation, toolset, name, instance string) catalog
 			csv = append(csv, p.name)
 		}
 	}
-	if op.body {
+	bodyFields := []string{}
+	if op.body && len(op.bodyProps) > 0 {
+		// A field whose name a parameter already owns keeps the wrapper, so one
+		// argument never means two things.
+		fits := true
+		for _, p := range op.bodyProps {
+			if _, taken := props[p.name]; taken {
+				fits = false
+				break
+			}
+		}
+		if fits {
+			for _, p := range op.bodyProps {
+				schema := deepCopy(p.schema)
+				delete(schema, "$ref")
+				props[p.name] = schema
+				if p.required {
+					required = append(required, p.name)
+				}
+				bodyFields = append(bodyFields, p.name)
+			}
+		}
+	}
+	if op.body && len(bodyFields) == 0 {
 		desc := op.bodyDesc
 		if op.form && desc == "" {
 			desc = "Form fields, sent as multipart/form-data. A value {filename, content} or {filename, base64} is sent as a file part."
@@ -683,9 +766,10 @@ func buildTool(m mapping, op *operation, toolset, name, instance string) catalog
 		Annotations: annotations(op.method),
 		Input:       input,
 		Operation: catalog.Operation{
-			Method: op.method,
-			Path:   op.path,
-			CSV:    csv,
+			Method:     op.method,
+			Path:       op.path,
+			CSV:        csv,
+			BodyFields: bodyFields,
 		},
 		StreamingPath:      containsAny(op.path, m.StreamPaths),
 		Stream:             stream,

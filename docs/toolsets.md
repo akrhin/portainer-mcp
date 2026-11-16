@@ -57,6 +57,10 @@ One handler serves every tool. `internal/mcpserver/tools.go` builds the request 
 the catalog entry and the arguments — path parameters are escaped and substituted,
 remaining input properties become query values (arrays as repeated keys, or one
 comma-joined value where the catalog says so), and the body property is sent as JSON.
+A body that the document declares as a plain object of scalars is not wrapped: its
+fields arrive as arguments of their own, so a search takes `query` rather than
+`body: {query}`. A body with a nested object, an array or free-form keys keeps the
+wrapper.
 `internal/portainer/exec.go` performs the call with `X-API-KEY`. A JSON answer comes
 back both as text content and as `structuredContent`; 237 tools also declare an
 output schema, which the client receives as `outputSchema`.
@@ -198,6 +202,11 @@ page instead of a broken prefix: the first 50 elements plus `_truncated`, `_tota
 and a `_hint` naming the tool to narrow the list with. A cut body that is not an
 array keeps the plain marker `…[truncated at N bytes: ask for a narrower filter or a
 smaller range]`.
+
+An answer that arrives whole but is larger than 24 KiB is paged the same way: a
+top-level array becomes `{items, _truncated, _total, _hint}`, and a list under `data`
+keeps its envelope with the counts added. The budget keeps one answer at roughly six
+thousand tokens, and under the 32 KiB a gateway forwards whole without wrapping it.
 
 ## Selection rules
 

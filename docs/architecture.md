@@ -93,7 +93,9 @@ MCP client
 The handler (`internal/mcpserver/tools.go:20`) turns one catalog entry into a request:
 path parameters are escaped and substituted, every remaining input property becomes a
 query value (arrays as repeated keys, or one comma-joined value where the catalog
-declares it), and the body property is marshalled as JSON. Raw tools take the method
+declares it), and the body property is marshalled as JSON. When the body is a plain
+object of scalars the generator lifts its fields into the tool input instead
+(`Operation.BodyFields`), so the handler assembles the object from them. Raw tools take the method
 and path from the arguments and append the path to their base, refusing a path that
 does not start with `/` or contains `..`.
 
@@ -127,6 +129,10 @@ unknown name produces `unknown instance "x" (configured: ...)`.
   `internal/portainer/exec.go:17`). A cut JSON array becomes a page: the first 50
   elements plus `_truncated`, `_total` and `_hint`. A cut non-array keeps the marker
   `…[truncated at N bytes: ...]`.
+- **Answer budget.** An answer larger than 24 KiB (`maxAnswerBytes` in
+  `internal/mcpserver/tools.go`) is paged although it arrived whole: a top-level array
+  becomes the same page, a list under `data` keeps its envelope and gains the counts.
+  Without a list to cut, the answer is cut as text and loses `structuredContent`.
 - **Structured content.** A complete JSON answer is returned both as text and as
   `structuredContent`; 237 tools also declare an output schema, which becomes the
   tool's `outputSchema`.
