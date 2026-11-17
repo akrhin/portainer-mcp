@@ -2,15 +2,20 @@
 
 # Portainer MCP documentation
 
-An MCP server that exposes Portainer, Docker, Kubernetes and Helm to MCP clients. It
-is written in Go against the official `github.com/modelcontextprotocol/go-sdk`
-(v1.8.0), which speaks the MCP revision `2026-07-28`, and runs over stdio or
-Streamable HTTP at `/mcp`.
+An MCP server that exposes Portainer, Docker, Kubernetes and Helm to MCP clients. It is
+written in Go against the official `github.com/modelcontextprotocol/go-sdk` (v1.8.0),
+which speaks the MCP revision `2026-07-28`, and runs over stdio or Streamable HTTP at
+`/mcp`.
 
 The catalog is complete and executable: 394 tools in eleven toolsets, 87 of them
 registered by default. Every tool is generated from the Portainer 2.45 and Docker
 Engine 1.57 specifications and executed by one shared handler, so enabling a toolset
 no longer stops startup.
+
+The same repository builds a second binary, `arcane-mcp`, for an Arcane manager: 445
+tools in seventeen toolsets, 53 of them by default, generated from the Arcane 3.0.1
+document by the same generator. It shares the handler and the catalog machinery, runs
+over stdio, and is configured by flags rather than a file.
 
 ## Pages
 
@@ -26,7 +31,9 @@ no longer stops startup.
 ## Product
 
 One process serves one or more configured Portainer instances. Every tool takes an
-optional `instance` argument and defaults to the first configured instance.
+optional `instance` argument and defaults to the first configured instance. The second
+binary, `arcane-mcp`, serves a single manager per process, named by `--name`, and takes
+no configuration file; [Arcane backend](arcane.md) covers its toolsets and flags.
 
 The tool surface is declarative. `api/toolsets.yaml` and `api/default-tools.yaml` feed
 `tools/cataloggen`, which writes `internal/catalog/generated.yaml`; that file and the
@@ -56,18 +63,20 @@ validation message, is in [Configuration](configuration.md).
 | Need | Command |
 |---|---|
 | Build the binary | `make build` |
-| Regenerate the tool catalog | `make catalog` |
+| Build the Arcane binary | `make build-arcane` |
+| Regenerate the tool catalogs | `make catalog` |
 | Format, vet and test | `make check` |
 | Race detector | `go test -race ./...` |
 | Live stdio run against a real instance | `bash scripts/smoke.sh config.local.yaml` |
 | Documentation gate | `bash scripts/docs-check.sh` |
 
-Package layout: `cmd/portainer-mcp` for the entry point, `internal/catalog` for the
-embedded catalog and its validation, `internal/config` for the YAML configuration,
-`internal/mcpserver` for registration and the shared handler, `internal/portainer` for
-the HTTP executor. `api/` holds the OpenAPI documents and the curated generator
-inputs, and `tools/cataloggen` is the generator. The details are in
-[Development](development.md) and [Architecture](architecture.md).
+Package layout: `cmd/portainer-mcp` and `cmd/arcane-mcp` for the entry points,
+`internal/catalog` for the embedded catalog and its validation, `internal/catalog/arcane`
+for the Arcane pair, `internal/config` for the YAML configuration, `internal/mcpserver`
+for registration and the shared handler, `internal/portainer` for the HTTP executor.
+`api/` holds the OpenAPI documents and the curated generator inputs, and
+`tools/cataloggen` is the generator. The details are in [Development](development.md)
+and [Architecture](architecture.md).
 
 ## History
 

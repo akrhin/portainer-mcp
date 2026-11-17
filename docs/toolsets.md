@@ -2,11 +2,16 @@
 
 # Toolsets
 
-The catalog carries 394 tools in eleven toolsets. Every tool is data: a name, a
-description, MCP annotations, an input schema, an optional output schema and the HTTP
+The Portainer catalog carries 394 tools in eleven toolsets. Every tool is data: a name,
+a description, MCP annotations, an input schema, an optional output schema and the HTTP
 operation behind it. No handler restates any of that. The list itself lives in
 `internal/catalog/generated.yaml`; this page is a view of it, and when the two
 disagree the server registers what the generated file says.
+
+The Arcane binary ships a catalog of its own — 445 tools in seventeen toolsets — built
+by the same generator from a separate pair of files in `api/` and
+`internal/catalog/arcane/`. It is described in [Arcane backend](arcane.md); every
+statement below is about the Portainer catalog.
 
 ## Where the tools come from
 
@@ -15,14 +20,16 @@ disagree the server registers what the generated file says.
 | `api/portainer-2.45.yaml`, `api/docker-engine-1.57.yaml` | The OpenAPI documents every tool is derived from |
 | `api/toolsets.yaml` | Tag-to-toolset map, per-operation overrides, skipped paths, streaming marks, `managedFields` paths, name rewrites and the three raw extras |
 | `api/default-tools.yaml` | The 87 tools registered when `--exhaustive` is off |
-| `tools/cataloggen` (`make catalog`) | Reads the four files above and writes `internal/catalog/generated.yaml` |
+| `tools/cataloggen` (`make catalog`) | Reads the four files above and writes `internal/catalog/generated.yaml`; the same run builds the Arcane catalog from its own inputs (`-profile` builds one of them) |
 | `internal/catalog/catalog.yaml` | Toolset names, descriptions and `depends_on` edges; no tool lists |
 | `internal/catalog/generated.yaml` | Every tool of every set; embedded in the binary |
 
 Both documents are embedded with `//go:embed` and merged at startup
 (`internal/catalog/catalog.go`): the curated document supplies the set descriptions
 and dependencies, the generated one supplies the tools. The merge refuses a toolset
-that appears in only one of them, and refuses a tool list in `catalog.yaml`.
+that appears in only one of them, and refuses a tool list in `catalog.yaml`. The
+Arcane pair under `internal/catalog/arcane/` is embedded and merged the same way, by
+`LoadArcane` instead of `Load`.
 
 ## Summary
 

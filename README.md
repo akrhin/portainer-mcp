@@ -4,27 +4,32 @@
 
 # portainer-mcp
 
-An MCP server that exposes Portainer to MCP clients: Portainer's own API, Docker
-Engine through Portainer environments, Kubernetes and Helm. The surface is generated
-from the Portainer 2.45 and Docker Engine 1.57 OpenAPI documents — 394 tools across
-eleven toolsets, 87 of them registered by default.
+Two MCP servers are built here from one catalog generator, both in Go against the
+official `github.com/modelcontextprotocol/go-sdk` v1.8.0.
 
-Written in Go against the official `github.com/modelcontextprotocol/go-sdk` v1.8.0.
-The revision a client negotiates with the server follows the SDK, which speaks MCP
-`2026-07-28`; the server also answers the legacy `2025-11-25` handshake. Transport
-is stdio by default or Streamable HTTP at `/mcp`.
+| Binary | Speaks to | Catalog | Default set |
+|---|---|---|---|
+| `portainer-mcp` | Portainer: its own API, Docker Engine through Portainer environments, Kubernetes and Helm | 394 tools in eleven toolsets | 87 |
+| `arcane-mcp` | An [Arcane](https://getarcane.app) manager: containers, projects, images, volumes, networks, security and administration | 445 tools in seventeen toolsets | 53 |
+
+`portainer-mcp` speaks MCP over stdio by default or Streamable HTTP at `/mcp`;
+`arcane-mcp` is stdio only. The revision a client negotiates follows the SDK, which
+speaks MCP `2026-07-28`; the server also answers the legacy `2025-11-25` handshake.
 
 The tool surface is data. `api/toolsets.yaml` maps OpenAPI tags and paths to toolsets
 and carries the name rewrites; `api/default-tools.yaml` lists the 87 tools registered
 without `--exhaustive`. `make catalog` (`go run ./tools/cataloggen`) turns both, plus
 the two specifications, into `internal/catalog/generated.yaml`, which is embedded in
-the binary. `internal/catalog/catalog.yaml` keeps only toolset descriptions and
-dependencies. A tool that is not in the generated catalog cannot be called.
+the binary. The Arcane profile reads `api/arcane-toolsets.yaml`,
+`api/arcane-default-tools.yaml` and `api/arcane-3.1.yaml` the same way.
+`internal/catalog/catalog.yaml` keeps only toolset descriptions and dependencies. A
+tool that is not in the generated catalog cannot be called.
 
-**Status: the catalog is executable.** All 394 tools are defined as data and run
-through one handler. Without flags, startup registers the 87-tool default set of the
-enabled toolsets; `--exhaustive` registers every operation of those toolsets, and
-`--read-only` filters either set down to tools annotated read-only.
+**Status: both catalogs are executable.** Every tool — 394 for Portainer, 445 for
+Arcane — is defined as data and run through one shared handler. Without flags, startup
+registers the default set of the enabled toolsets, 87 and 53 respectively;
+`--exhaustive` registers every operation of those toolsets, and `--read-only` filters
+either set down to tools annotated read-only.
 
 ## Requirements
 
@@ -33,13 +38,16 @@ enabled toolsets; `--exhaustive` registers every operation of those toolsets, an
 - A Portainer instance reachable over HTTP or HTTPS, and an API key whose
   permissions you are willing to give the tools. Self-signed certificates are
   accepted only when `tls_verify` is `false` for that instance.
+- For `arcane-mcp`, an Arcane manager and an API key for it; the manager's base URL
+  is a required flag, not a configuration key.
 
 ## Build
 
 ```sh
-make build      # ./portainer-mcp
-make check      # gofmt, go vet, go test
-make catalog    # regenerate internal/catalog/generated.yaml from api/
+make build        # ./portainer-mcp
+make build-arcane # ./arcane-mcp
+make check        # gofmt, go vet, go test
+make catalog      # regenerate both generated catalogs from api/
 ```
 
 ## Configure
@@ -103,7 +111,8 @@ put TLS in front of it if the endpoint leaves the host.
 
 Flags override the file where they overlap. `--read-only` is combined with
 `server.read_only` (either one enables it); `--toolsets` replaces `toolsets`;
-`--exhaustive` is combined with `server.exhaustive`.
+`--exhaustive` is combined with `server.exhaustive`. `arcane-mcp` has no configuration
+file and its own flag set; the table is under [Arcane backend](#arcane-backend).
 
 ## Toolsets
 
@@ -144,10 +153,12 @@ ARCANE_API_KEY=... ./arcane-mcp --url http://arcane:3552 --toolsets core,contain
 ```
 
 `--url` is required and there is no configuration file. The key comes from `--api-key`
-(default `${ARCANE_API_KEY}`) and travels in the `X-API-Key` header. Arcane 3.0.1 has no
-exec or terminal endpoint, so there is no container shell; the Stream, Uploads, Mobile
-Push, MFA, Passkeys and OIDC tags are skipped. [docs/arcane.md](docs/arcane.md) has the
-toolsets, the flags and the regeneration steps.
+(default `${ARCANE_API_KEY}`) and travels in the `X-API-Key` header. Arcane's OpenAPI
+document has no exec operation — its terminal is a WebSocket route — so the one-shot
+container shell is a hand-written `container_exec`, registered only under
+`--allow-exec` (or `ARCANE_ALLOW_EXEC=true`) and never in read-only mode.
+[docs/arcane.md](docs/arcane.md) has the toolsets, the flags and the regeneration
+steps.
 
 ## Documentation
 
@@ -165,15 +176,15 @@ toolsets, the flags and the regeneration steps.
 Releases are cut from a `v*` tag. The workflow builds `linux`, `darwin` and `windows`
 archives for `amd64` and `arm64` with checksums and SBOMs, and publishes a multi-arch
 image to `ghcr.io/akrhin/portainer-mcp` (`:latest` and the version tag). The image is
-distroless and runs as a non-root user. `v0.3.0` is out, so the quickest start is
+distroless and runs as a non-root user. `v0.4.1` is out, so the quickest start is
 the release archive or the image. Every archive carries both binaries, `portainer-mcp`
-and `arcane-mcp`:
+and `arcane-mcp`; the image carries `portainer-mcp` only.
 
 ```sh
 docker run -i --rm -e PORTAINER_API_KEY -v "$PWD/config.yaml:/config.yaml" \
-  ghcr.io/akrhin/portainer-mcp:v0.3.0 --config /config.yaml
-go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.3.0
-go install github.com/akrhin/portainer-mcp/cmd/arcane-mcp@v0.3.0
+  ghcr.io/akrhin/portainer-mcp:v0.4.1 --config /config.yaml
+go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.4.1
+go install github.com/akrhin/portainer-mcp/cmd/arcane-mcp@v0.4.1
 ```
 
 To build the image from the checkout instead, `docker build -t portainer-mcp .`.

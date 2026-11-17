@@ -133,9 +133,10 @@ make build-arcane                       # ./arcane-mcp
 ARCANE_API_KEY=... ./arcane-mcp --url http://arcane:3552 --toolsets core,containers
 ```
 
-There is no configuration file. One process serves one manager, given by `--url`; the key
-comes from `--api-key` and defaults to the `${ARCANE_API_KEY}` reference, so an unset
-variable fails at startup instead of sending an empty header.
+There is no configuration file. One process serves one manager, given by `--url`; the
+transport is stdio, with no HTTP listener. The key comes from `--api-key` and defaults
+to the `${ARCANE_API_KEY}` reference, so an unset variable fails at startup instead of
+sending an empty header.
 
 | Flag | Default | Effect |
 |---|---|---|

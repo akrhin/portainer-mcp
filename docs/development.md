@@ -9,8 +9,8 @@ checklist are in [CONTRIBUTING.md](../CONTRIBUTING.md); this page is the mechani
 
 - Go 1.27 or newer. `go.mod` pins `go 1.27.4`, and CI reads the version from that
   file rather than from a matrix entry.
-- A Portainer instance only for the smoke run. Unit tests use `httptest` and need no
-  network.
+- A Portainer instance for the smoke run, and an Arcane manager for the Arcane one.
+  Unit tests use `httptest` and need no network.
 - `docker` only to build the image.
 - `npx` only for the Markdown lint that CI runs.
 
@@ -19,8 +19,10 @@ checklist are in [CONTRIBUTING.md](../CONTRIBUTING.md); this page is the mechani
 | Command | What it does |
 |---|---|
 | `make build` | `go build -o portainer-mcp ./cmd/portainer-mcp` |
+| `make build-arcane` | `go build -o arcane-mcp ./cmd/arcane-mcp` |
 | `make check` | `gofmt -l .`, then `go vet ./...`, then `go test ./...` |
-| `make catalog` | `go run ./tools/cataloggen`, rewriting `internal/catalog/generated.yaml` |
+| `make catalog` | `go run ./tools/cataloggen`, rewriting both `generated.yaml` files |
+| `make spec-arcane` | `go run ./tools/specgen -in arcane-openapi.json -out api/arcane-3.1.yaml`; needs that document saved in the repository root |
 | `go test ./...` | The suite alone |
 | `go build ./...` | Compile every package without producing a binary |
 | `go test -race ./...` | The suite under the race detector |
@@ -32,16 +34,17 @@ test. There is no default `make test` target; call `go test` directly.
 
 ## Tests
 
-The suite is 38 tests in five packages. All of them are table-driven and none of them
-touches the network.
+The suite is 69 test functions in six packages. All of them are table-driven and none
+of them touches the network.
 
 | Package | What it covers |
 |---|---|
+| `internal/arcane` | The client sends `X-API-Key`, and its errors carry the `arcane` label |
 | `internal/catalog` | The merged catalog validates; parse errors for version, duplicate names, missing hints, non-object schemas; the merge refuses a set in only one document; schema descriptions are strings; `CheckToolsets` accepts and rejects the right combinations |
 | `internal/config` | `${VAR}` expansion for string fields and for `tls_verify`; unknown toolset; dependency not enabled; missing API key; no instances |
-| `internal/mcpserver` | `tools/list` golden; exhaustive registration exposes every tool of the sets; read-only drops write tools; a call through MCP reaches path, query and body; streaming refusal; `managedFields` stripping; truncated-array paging; unknown toolset fails |
+| `internal/mcpserver` | `tools/list` golden; exhaustive registration exposes every tool of the sets; read-only drops write tools; a call through MCP reaches path, query and body, on both catalogs; streaming refusal; `managedFields` stripping; truncated-array paging; the answer budget; multipart bodies; flat body fields; `container_exec` opt-in and its websocket output, cut and timeout; unknown toolset fails |
 | `internal/portainer` | The `X-API-KEY` header is sent; a 401 becomes the documented `APIError` text; endpoint listing decodes; `Do` sends method, path, query and body; truncation, non-JSON answers, path expansion, query encoding and field stripping |
-| `tools/cataloggen` | The committed `generated.yaml` matches a fresh run byte for byte; one tool per operation plus the raw extras; response flags; tool naming and camelCase splitting |
+| `tools/cataloggen` | Both committed `generated.yaml` files match a fresh run byte for byte; one tool per operation plus the raw extras; the Arcane counts, name forms, bounded streams and binary bodies; response flags; tool naming and camelCase splitting |
 
 The catalog and the registered tool list are held together by a golden test:
 `internal/mcpserver/testdata/tools_core_docker.golden.json` is the expected
@@ -92,6 +95,26 @@ PORTAINER_API_KEY=... SMOKE_ENV_ID=1 SMOKE_TOOLSETS=core,docker \
 It exits 0 with `OK: core tools answered and every enabled set answered one read
 probe`; anything else is a failure to read, not a warning.
 
+`scripts/smoke-arcane.sh` is the same shape for the second binary, and it needs no
+config file:
+
+```sh
+ARCANE_URL=http://arcane:3552 ARCANE_API_KEY=... bash scripts/smoke-arcane.sh
+```
+
+- `ARCANE_URL` and `ARCANE_API_KEY` are both required; the script exits 2 without them.
+- `SMOKE_TOOLSETS` defaults to `core,containers,projects,images,volumes,networks`, the
+  sets the fixed probe list touches.
+- `SMOKE_AGENT_ID` defaults to `0` and is passed to every probe as `id`.
+- It builds `arcane-mcp` into a temporary directory, sends `initialize` with protocol
+  version `2026-07-28`, `notifications/initialized`, `tools/list` and eight read calls:
+  `environments_list`, `environment_inspect`, `containers_list`,
+  `container_status_count`, `projects_list`, `image_update_summary`, `volumes_list`,
+  `networks_list`. It fails on any reply that carries `isError: true`, and exits 0
+  with `OK: every probe answered`.
+- The probe list is fixed, so a narrowed `SMOKE_TOOLSETS` must still cover every set it
+  reads from: `volumes_list` lives in `volumes` and `networks_list` in `networks`.
+
 ## Documentation gate
 
 ```sh
@@ -127,7 +150,7 @@ and excludes `docs/history/**` from the glob.
 |---|---|---|
 | `ci.yml` | push to `main`, pull request | `gofmt -l .`, `go vet`, `go test -race`, `go build`; `golangci-lint` v2.15.0 with `.golangci.yml` (errcheck, govet, staticcheck, ineffassign, unused, misspell, revive) |
 | `docs.yml` | push to `main`, pull request | `scripts/docs-check.sh`, `markdownlint-cli2@0.24.1` |
-| `security.yml` | push to `main`, pull request, weekly | gosec v2.22.4 to SARIF, govulncheck v1.1.4, gitleaks over the full history, dependency review on pull requests, CodeQL `security-extended` |
+| `security.yml` | push to `main`, pull request, weekly | gosec v2.30.0 to SARIF, govulncheck v1.9.0, gitleaks over the full history, dependency review on pull requests, CodeQL `security-extended` |
 | `release.yml` | tag `v*` | goreleaser v2, Docker buildx, `ghcr.io` login |
 
 The docs jobs are conditional on the files existing, so a checkout without
@@ -155,8 +178,9 @@ features, bug fixes, performance, refactoring and documentation; `chore`, `test`
 `ci`, `style`, `build` and merge commits are filtered out. This is why commit
 prefixes matter beyond tidiness.
 
-`v0.1.0` is tagged, so the release archives and the `ghcr.io/akrhin/portainer-mcp`
-image exist; build a local image with `docker build -t portainer-mcp .`.
+`v0.4.1` is the current tag, so the release archives and the
+`ghcr.io/akrhin/portainer-mcp` image exist; build a local image with
+`docker build -t portainer-mcp .`.
 
 The image is built from `golang:1.27-alpine` and runs on
 `gcr.io/distroless/static:nonroot`. It has no `HEALTHCHECK`: over stdio the process
@@ -164,7 +188,7 @@ is silent until a message arrives, so a liveness probe would have nothing to rea
 
 ## Changing the tool surface
 
-The surface is data. Do not edit `internal/catalog/generated.yaml` and do not add a
+The surface is data. Do not edit `generated.yaml` — either of them — and do not add a
 handler: add or move the operation in `api/toolsets.yaml` (the tag map, an
 `operation_toolsets` override, or an `extras` entry), choose whether it joins the
 default set in `api/default-tools.yaml`, then run:
@@ -173,6 +197,11 @@ default set in `api/default-tools.yaml`, then run:
 make catalog
 make catalog && git diff --exit-code internal/catalog/generated.yaml
 ```
+
+For the Arcane catalog the same applies to `api/arcane-toolsets.yaml` and
+`api/arcane-default-tools.yaml`; to rebuild its converted specification from a fresh
+Arcane OpenAPI document, save it as `arcane-openapi.json` and run `make spec-arcane`
+first. `go run ./tools/cataloggen -profile arcane` builds that catalog alone.
 
 The second command is the determinism check: a second run must change nothing. Then
 run the gates:

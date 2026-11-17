@@ -4,22 +4,30 @@ Instructions for coding agents working in this repository.
 
 ## What this project is
 
-An MCP server for Portainer, written in Go. Module `github.com/akrhin/portainer-mcp`.
-It exposes Portainer, Docker, Kubernetes and Helm operations to MCP clients over
-stdio or Streamable HTTP, using the official `github.com/modelcontextprotocol/go-sdk`.
+Two MCP servers built from one repository and one catalog generator, written in Go.
+Module `github.com/akrhin/portainer-mcp`.
 
-The tool surface is data: `internal/catalog/catalog.yaml` is embedded and drives
-registration, read-only filtering and validation. A tool that is not in the
-catalog cannot be called.
+- `cmd/portainer-mcp` exposes Portainer, Docker, Kubernetes and Helm to MCP clients.
+- `cmd/arcane-mcp` exposes an Arcane manager (Docker through its agents, projects,
+  images, security and administration).
+
+Both speak official `github.com/modelcontextprotocol/go-sdk` and share the handler, the
+configuration types and the catalog machinery. `portainer-mcp` runs over stdio or
+Streamable HTTP; `arcane-mcp` runs over stdio only. The surface is data: `internal/catalog/catalog.yaml` and its generated
+counterpart are embedded and drive registration, read-only filtering and validation;
+`internal/catalog/arcane/` holds the same pair for Arcane. A tool that is not in the
+generated catalog cannot be called.
 
 ## Commands
 
 ```sh
 make build            # go build -o portainer-mcp ./cmd/portainer-mcp
+make build-arcane     # go build -o arcane-mcp ./cmd/arcane-mcp
 make check            # gofmt -l ., go vet ./..., go test ./...
 go test ./...         # the suite alone
 go build ./...        # compile everything without producing a binary
 go test -race ./...   # required before a pull request that touches concurrency
+make catalog          # regenerate both generated.yaml files from api/
 bash scripts/docs-check.sh   # documentation gate
 ```
 
@@ -30,23 +38,35 @@ a failed task.
 
 | path | contents |
 |---|---|
-| `cmd/portainer-mcp/` | entry point, flag parsing, wiring |
-| `internal/catalog/` | catalog types, YAML loading and validation, embedded `catalog.yaml` |
+| `cmd/portainer-mcp/` | Portainer entry point, flag parsing, wiring |
+| `cmd/arcane-mcp/` | Arcane entry point, flag parsing, wiring |
+| `api/` | specifications, tag-to-toolset maps and default sets for both profiles |
+| `tools/cataloggen/` | generates `generated.yaml` for either profile from `api/` |
+| `tools/specgen/` | converts the Arcane OpenAPI document to `api/arcane-3.1.yaml` |
+| `internal/catalog/` | catalog types, YAML loading and validation, embedded `catalog.yaml` and `generated.yaml` |
+| `internal/catalog/arcane/` | the same pair for the Arcane profile |
 | `internal/config/` | server and instance configuration, `${VAR}` expansion, toolset checks |
+| `internal/portainer/` | Portainer client |
+| `internal/arcane/` | Arcane client (`X-API-Key`) |
+| `internal/mcpserver/` | the shared handler, transports and tool registration |
 | `docs/` | documentation; `docs/history/` is a dated archive |
-| `scripts/` | gate scripts |
+| `scripts/` | gate and smoke scripts |
 
-Handlers live next to the domain they serve. The catalog declares operations; it is
-not the place for logic.
+Handlers live in `internal/mcpserver/` next to the transport they serve: one shared
+handler executes every catalog operation, so adding a tool is a catalog change, not
+new code.
 
 ## Conventions
 
 - Errors are wrapped with context and `%w`. Never swallow or stringify the cause.
 - No interface before a second implementation. No option struct for a single caller.
-- `internal/catalog/catalog.yaml` is the single source of tool names, descriptions,
-  annotations and schemas. Handlers must not restate them.
-- Every tool declares `annotations.readOnlyHint`. Write tools also declare
-  `annotations.destructiveHint`. Validation rejects the catalog otherwise.
+- `api/toolsets.yaml` and `api/default-tools.yaml` (plus the Arcane pair) are the
+  single source of tool names, descriptions, annotations and schemas; `generated.yaml`
+  is written by `tools/cataloggen` and never edited by hand. `internal/catalog/catalog.yaml`
+  holds toolset names, descriptions and `depends_on` only — no tool lists.
+- Every tool declares `annotations.readOnlyHint`. A write tool declares
+  `annotations.destructiveHint` or `annotations.idempotentHint`. Validation rejects the
+  catalog otherwise.
 - Read-only mode filters at registration time. A tool checking `read_only` inside
   its handler is a defect: the client must never see what it cannot call.
 - Tests are table-driven. A golden test keeps the catalog and the registered tool
