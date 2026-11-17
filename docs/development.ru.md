@@ -11,8 +11,8 @@
 
 - Go 1.27 или новее. `go.mod` фиксирует `go 1.27.4`, и CI берёт версию из этого
   файла, а не из матрицы.
-- Инстанс Portainer — только для smoke-прогона. Юнит-тесты используют `httptest` и
-  сети не требуют.
+- Инстанс Portainer — для smoke-прогона, менеджер Arcane — для прогона Arcane.
+  Юнит-тесты используют `httptest` и сети не требуют.
 - `docker` — только чтобы собрать образ.
 - `npx` — только для линта Markdown, который гоняет CI.
 
@@ -21,8 +21,10 @@
 | Команда | Что делает |
 |---|---|
 | `make build` | `go build -o portainer-mcp ./cmd/portainer-mcp` |
+| `make build-arcane` | `go build -o arcane-mcp ./cmd/arcane-mcp` |
 | `make check` | `gofmt -l .`, затем `go vet ./...`, затем `go test ./...` |
-| `make catalog` | `go run ./tools/cataloggen`, переписывает `internal/catalog/generated.yaml` |
+| `make catalog` | `go run ./tools/cataloggen`, переписывает оба `generated.yaml` |
+| `make spec-arcane` | `go run ./tools/specgen -in arcane-openapi.json -out api/arcane-3.1.yaml`; документ нужно положить в корень репозитория |
 | `go test ./...` | Только набор тестов |
 | `go build ./...` | Компиляция всех пакетов без бинаря |
 | `go test -race ./...` | Набор под детектором гонок |
@@ -34,15 +36,16 @@
 
 ## Тесты
 
-В наборе 38 тестов в пяти пакетах. Все они табличные, и ни один не ходит в сеть.
+В наборе 69 тестовых функций в шести пакетах. Все они табличные, и ни один не ходит в сеть.
 
 | Пакет | Что проверяет |
 |---|---|
+| `internal/arcane` | Клиент отправляет `X-API-Key`, а его ошибки несут метку `arcane` |
 | `internal/catalog` | Слитый каталог проходит валидацию; ошибки разбора на версии, дублях имён, отсутствующих подсказках, схемах не-объектах; слияние отвергает набор только в одном документе; описания схем — строки; `CheckToolsets` принимает и отвергает нужные комбинации |
 | `internal/config` | Подстановка `${VAR}` в строковые поля и в `tls_verify`; неизвестный набор; не включённая зависимость; отсутствующий API-ключ; отсутствие инстансов |
-| `internal/mcpserver` | Golden-файл `tools/list`; exhaustive-регистрация отдаёт каждый тул наборов; read-only убирает write-тулы; вызов через MCP доходит до пути, query и тела; отказ на стриминге; вырезание `managedFields`; постраничная выдача обрезанного массива; неизвестный набор падает |
+| `internal/mcpserver` | Golden-файл `tools/list`; exhaustive-регистрация отдаёт каждый тул наборов; read-only убирает write-тулы; вызов через MCP доходит до пути, query и тела — на обоих каталогах; отказ на стриминге; вырезание `managedFields`; постраничная выдача обрезанного массива; бюджет ответа; тела multipart; плоские поля тела; опт-ин `container_exec` и его вывод по websocket, обрезание и таймаут; неизвестный набор падает |
 | `internal/portainer` | Заголовок `X-API-KEY` отправляется; 401 превращается в задокументированный текст `APIError`; список эндпоинтов декодируется; `Do` отправляет метод, путь, query и тело; обрезание, не-JSON ответы, разворачивание пути, кодирование query и вырезание поля |
-| `tools/cataloggen` | Закоммиченный `generated.yaml` совпадает со свежим прогоном байт в байт; один тул на операцию плюс сырые extra-тулы; флаги ответа; именование тулов и разбиение camelCase |
+| `tools/cataloggen` | Оба закоммиченных `generated.yaml` совпадают со свежим прогоном байт в байт; один тул на операцию плюс сырые extra-тулы; счётчики, формы имён, ограниченные стримы и бинарные тела Arcane; флаги ответа; именование тулов и разбиение camelCase |
 
 Каталог и список зарегистрированных тулов держит вместе golden-тест:
 `internal/mcpserver/testdata/tools_core_docker.golden.json` — ожидаемый ответ
@@ -95,6 +98,27 @@ PORTAINER_API_KEY=... SMOKE_ENV_ID=1 SMOKE_TOOLSETS=core,docker \
 `OK: core tools answered and every enabled set answered one read probe`; всё
 остальное — отказ, который нужно читать, а не предупреждение.
 
+`scripts/smoke-arcane.sh` устроен так же для второго бинаря и файла конфигурации не
+требует:
+
+```sh
+ARCANE_URL=http://arcane:3552 ARCANE_API_KEY=... bash scripts/smoke-arcane.sh
+```
+
+- `ARCANE_URL` и `ARCANE_API_KEY` обязательны; без них скрипт выходит с кодом 2.
+- `SMOKE_TOOLSETS` по умолчанию `core,containers,projects,images,volumes,networks` —
+  это наборы, которых касается фиксированный список пробников.
+- `SMOKE_AGENT_ID` по умолчанию `0` и передаётся каждому пробнику как `id`.
+- Скрипт собирает `arcane-mcp` во временный каталог, отправляет `initialize` с версией
+  протокола `2026-07-28`, `notifications/initialized`, `tools/list` и восемь
+  read-вызовов: `environments_list`, `environment_inspect`, `containers_list`,
+  `container_status_count`, `projects_list`, `image_update_summary`, `volumes_list`,
+  `networks_list`. Любой ответ с `isError: true` валит прогон; успех — код 0 и строка
+  `OK: every probe answered`.
+- Список пробников фиксирован, поэтому сужённый `SMOKE_TOOLSETS` обязан покрывать все
+  наборы, из которых он читает: `volumes_list` живёт в `volumes`, а `networks_list` —
+  в `networks`.
+
 ## Ворота документации
 
 ```sh
@@ -130,7 +154,7 @@ npx --yes markdownlint-cli2@0.24.1
 |---|---|---|
 | `ci.yml` | push в `main`, pull request | `gofmt -l .`, `go vet`, `go test -race`, `go build`; `golangci-lint` v2.15.0 по `.golangci.yml` (errcheck, govet, staticcheck, ineffassign, unused, misspell, revive) |
 | `docs.yml` | push в `main`, pull request | `scripts/docs-check.sh`, `markdownlint-cli2@0.24.1` |
-| `security.yml` | push в `main`, pull request, раз в неделю | gosec v2.22.4 в SARIF, govulncheck v1.1.4, gitleaks по всей истории, dependency review на pull request, CodeQL `security-extended` |
+| `security.yml` | push в `main`, pull request, раз в неделю | gosec v2.30.0 в SARIF, govulncheck v1.9.0, gitleaks по всей истории, dependency review на pull request, CodeQL `security-extended` |
 | `release.yml` | тег `v*` | goreleaser v2, Docker buildx, вход в `ghcr.io` |
 
 Задачи документации условны по наличию файлов, поэтому checkout без
@@ -158,7 +182,7 @@ features, исправления, производительность, рефа
 `test`, `ci`, `style`, `build` и merge-коммиты отфильтрованы. Поэтому префиксы
 коммитов важны не только для аккуратности.
 
-Тег `v0.3.0` выпущен, поэтому архивы релиза и образ `ghcr.io/akrhin/portainer-mcp`
+Тег `v0.4.1` — текущий, поэтому архивы релиза и образ `ghcr.io/akrhin/portainer-mcp`
 существуют; локально образ собирается командой `docker build -t portainer-mcp .`.
 
 Образ собирается из `golang:1.27-alpine` и работает на
@@ -167,15 +191,21 @@ features, исправления, производительность, рефа
 
 ## Изменение поверхности тулов
 
-Поверхность — данные. Не правьте `internal/catalog/generated.yaml` и не добавляйте
-обработчик: добавьте или перенесите операцию в `api/toolsets.yaml` (карта тегов,
-переопределение в `operation_toolsets` или запись в `extras`), выберите
+Поверхность — данные. Не правьте `generated.yaml` — ни тот, ни другой — и не
+добавляйте обработчик: добавьте или перенесите операцию в `api/toolsets.yaml` (карта
+тегов, переопределение в `operation_toolsets` или запись в `extras`), выберите
 принадлежность к набору по умолчанию в `api/default-tools.yaml`, затем выполните:
 
 ```sh
 make catalog
 make catalog && git diff --exit-code internal/catalog/generated.yaml
 ```
+
+Для каталога Arcane то же самое относится к `api/arcane-toolsets.yaml` и
+`api/arcane-default-tools.yaml`; чтобы пересобрать его конвертированную спецификацию
+из свежего OpenAPI-документа Arcane, положите её как `arcane-openapi.json` и сначала
+выполните `make spec-arcane`. `go run ./tools/cataloggen -profile arcane` собирает
+только этот каталог.
 
 Вторая команда — проверка детерминизма: второй прогон не должен ничего менять.
 Затем прогоните ворота:

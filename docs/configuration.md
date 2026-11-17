@@ -7,6 +7,10 @@ toolsets. The file is read once at startup and is checked strictly: an unknown k
 a missing instance or a broken toolset dependency stops the server before it serves
 anything.
 
+`portainer-mcp` reads that file. The second binary, `arcane-mcp`, reads no file at
+all: one manager is all it talks to, and its flags are its configuration
+([Arcane backend](arcane.md) has the flag table).
+
 ```yaml
 server:
   transport: stdio
@@ -123,6 +127,27 @@ Rules, from the implementation:
 
 `--version` is filled at build time through `-X main.version`, `-X main.commit` and
 `-X main.date`; an untagged local build prints `dev (none, unknown)`.
+
+## The Arcane binary
+
+`arcane-mcp` has no configuration file and no `--config`. It builds the same
+`config.Config` in memory from flags (`config.Single`): the URL becomes the single
+instance, `--toolsets` becomes the list, and the result goes through the same
+validation as a YAML file — so an unknown toolset, a disabled dependency, a relative
+URL or an empty key fails with the same messages listed below.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--url` | — | Base URL of the manager; required, and an absolute `http(s)` URL |
+| `--api-key` | `${ARCANE_API_KEY}` | Sent as `X-API-Key`; an unset variable fails with `instance "arcane": api_key is empty; set ARCANE_API_KEY` |
+| `--name` | `arcane` | Instance name used in error messages |
+| `--toolsets` | every set of the Arcane catalog | Comma-separated names; an empty list means all of them, not an error |
+
+`--url` and `--api-key` accept a whole-value `${VAR}` reference exactly as the YAML
+string fields do. The transport is always stdio: there is no `--listen` and no HTTP
+listener, so the `server` block has no equivalent here. The remaining flags —
+`--read-only`, `--exhaustive`, `--allow-exec` and `--version` — are catalog switches,
+listed with the Arcane toolsets in [Arcane backend](arcane.md).
 
 ## Startup errors
 

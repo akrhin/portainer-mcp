@@ -4,28 +4,33 @@
 
 # portainer-mcp
 
-MCP-сервер, который выставляет Portainer MCP-клиентам: собственный API Portainer,
-Docker Engine через окружения Portainer, Kubernetes и Helm. Поверхность
-сгенерирована из OpenAPI-документов Portainer 2.45 и Docker Engine 1.57 — 394 тула
-в одиннадцати наборах, 87 из них регистрируются по умолчанию.
+Этот репозиторий собирает два MCP-сервера на одном генераторе каталога, оба на Go
+поверх официального `github.com/modelcontextprotocol/go-sdk` v1.8.0.
 
-Написан на Go поверх официального `github.com/modelcontextprotocol/go-sdk` v1.8.0.
-Ревизию MCP при рукопожатии определяет SDK — он говорит на `2026-07-28`; сервер
-отвечает и на устаревшее рукопожатие `2025-11-25`. Транспорт — stdio по умолчанию
-или Streamable HTTP по пути `/mcp`.
+| Бинарь | С чем говорит | Каталог | По умолчанию |
+|---|---|---|---|
+| `portainer-mcp` | Portainer: его собственный API, Docker Engine через окружения Portainer, Kubernetes и Helm | 394 тула в одиннадцати наборах | 87 |
+| `arcane-mcp` | Менеджер [Arcane](https://getarcane.app): контейнеры, проекты, образы, тома, сети, безопасность и администрирование | 445 тулов в семнадцати наборах | 53 |
+
+`portainer-mcp` говорит на MCP через stdio по умолчанию или Streamable HTTP по пути
+`/mcp`; `arcane-mcp` работает только через stdio. Ревизию MCP при рукопожатии
+определяет SDK — он говорит на `2026-07-28`; сервер отвечает и на устаревшее
+рукопожатие `2025-11-25`.
 
 Поверхность тулов — данные. `api/toolsets.yaml` разносит теги и пути OpenAPI по
 наборам и задаёт переименования; `api/default-tools.yaml` перечисляет 87 тулов,
 которые регистрируются без `--exhaustive`. `make catalog` (`go run
 ./tools/cataloggen`) собирает из обоих файлов и двух спецификаций
-`internal/catalog/generated.yaml`, который вшивается в бинарь.
-`internal/catalog/catalog.yaml` хранит только описания наборов и зависимости.
-Вызвать тул, которого нет в сгенерированном каталоге, нельзя.
+`internal/catalog/generated.yaml`, который вшивается в бинарь. Профиль Arcane читает
+`api/arcane-toolsets.yaml`, `api/arcane-default-tools.yaml` и `api/arcane-3.1.yaml`
+тем же порядком. `internal/catalog/catalog.yaml` хранит только описания наборов и
+зависимости. Вызвать тул, которого нет в сгенерированном каталоге, нельзя.
 
-**Статус: каталог исполняем.** Все 394 тула описаны данными и идут через один
-обработчик. Без флагов старт регистрирует набор по умолчанию — 87 тулов включённых
-наборов; `--exhaustive` регистрирует все операции этих наборов, а `--read-only`
-фильтрует любой из наборов до тулов с аннотацией read-only.
+**Статус: оба каталога исполняемы.** Каждый тул — 394 у Portainer, 445 у Arcane —
+описан данными и идёт через один общий обработчик. Без флагов старт регистрирует
+набор по умолчанию каждого сервера, 87 тулов у Portainer и 53 у Arcane;
+`--exhaustive` регистрирует все операции этих наборов, а `--read-only` фильтрует
+любой из наборов до тулов с аннотацией read-only.
 
 ## Требования
 
@@ -34,13 +39,16 @@ Docker Engine через окружения Portainer, Kubernetes и Helm. По�
 - Инстанс Portainer, доступный по HTTP или HTTPS, и API-ключ, права которого вы
   готовы отдать тулам. Самоподписанный сертификат принимается, только если для
   инстанса указано `tls_verify: false`.
+- Для `arcane-mcp` — менеджер Arcane и API-ключ к нему; базовый URL менеджера
+  задаётся обязательным флагом, а не ключом конфигурации.
 
 ## Сборка
 
 ```sh
-make build      # ./portainer-mcp
-make check      # gofmt, go vet, go test
-make catalog    # пересобрать internal/catalog/generated.yaml из api/
+make build        # ./portainer-mcp
+make build-arcane # ./arcane-mcp
+make check        # gofmt, go vet, go test
+make catalog      # пересобрать оба сгенерированных каталога из api/
 ```
 
 ## Настройка
@@ -105,7 +113,8 @@ PORTAINER_API_KEY=... ./portainer-mcp --config config.yaml
 
 Флаги перекрывают файл там, где совпадают. `--read-only` складывается с
 `server.read_only` (достаточно любого), `--toolsets` заменяет `toolsets`,
-`--exhaustive` складывается с `server.exhaustive`.
+`--exhaustive` складывается с `server.exhaustive`. У `arcane-mcp` файла конфигурации
+нет, а набор флагов свой: таблица — в разделе [«Бэкенд Arcane»](#бэкенд-arcane).
 
 ## Наборы тулов
 
@@ -147,10 +156,11 @@ ARCANE_API_KEY=... ./arcane-mcp --url http://arcane:3552 --toolsets core,contain
 ```
 
 `--url` обязателен, файла конфигурации нет. Ключ приходит из `--api-key` (по умолчанию
-`${ARCANE_API_KEY}`) и уходит в заголовке `X-API-Key`. В Arcane 3.0.1 нет эндпоинтов
-exec и terminal, поэтому консоли контейнера нет; теги Stream, Uploads, Mobile Push,
-MFA, Passkeys и OIDC пропущены. Наборы, флаги и перегенерация — в
-[docs/arcane.ru.md](docs/arcane.ru.md).
+`${ARCANE_API_KEY}`) и уходит в заголовке `X-API-Key`. В OpenAPI-документе Arcane
+операции exec нет: терминал живёт на WebSocket-маршруте, поэтому разовый шелл в
+контейнере — написанный руками `container_exec`. Он регистрируется только при
+`--allow-exec` (или `ARCANE_ALLOW_EXEC=true`) и никогда в режиме read-only. Наборы,
+флаги и перегенерация — в [docs/arcane.ru.md](docs/arcane.ru.md).
 
 ## Документация
 
@@ -171,14 +181,15 @@ MFA, Passkeys и OIDC пропущены. Наборы, флаги и перег
 Релизы выходят по тегу `v*`. Workflow собирает архивы для `linux`, `darwin` и
 `windows` на `amd64` и `arm64` с контрольными суммами и SBOM, а также публикует
 multi-arch образ в `ghcr.io/akrhin/portainer-mcp` (тег `:latest` и тег версии).
-Образ distroless и работает не от root. Релиз `v0.3.0` вышел, поэтому быстрее всего
-взять архив релиза или образ:
+Образ distroless и работает не от root. Релиз `v0.4.1` вышел, поэтому быстрее всего
+взять архив релиза или образ: каждый архив несёт оба бинаря, `portainer-mcp` и
+`arcane-mcp`, а образ — только `portainer-mcp`.
 
 ```sh
 docker run -i --rm -e PORTAINER_API_KEY -v "$PWD/config.yaml:/config.yaml" \
-  ghcr.io/akrhin/portainer-mcp:v0.3.0 --config /config.yaml
-go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.3.0
-go install github.com/akrhin/portainer-mcp/cmd/arcane-mcp@v0.3.0
+  ghcr.io/akrhin/portainer-mcp:v0.4.1 --config /config.yaml
+go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.4.1
+go install github.com/akrhin/portainer-mcp/cmd/arcane-mcp@v0.4.1
 ```
 
 Собрать образ из чекаута: `docker build -t portainer-mcp .`.
