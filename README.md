@@ -174,20 +174,24 @@ steps.
 ## Docker and releases
 
 Releases are cut from a `v*` tag. The workflow builds `linux`, `darwin` and `windows`
-archives for `amd64` and `arm64` with checksums and SBOMs, and publishes a multi-arch
-image to `ghcr.io/akrhin/portainer-mcp` (`:latest` and the version tag). The image is
-distroless and runs as a non-root user. `v0.4.2` is out, so the quickest start is
-the release archive or the image. Every archive carries both binaries, `portainer-mcp`
-and `arcane-mcp`; the image carries `portainer-mcp` only.
+archives for `amd64` and `arm64` with checksums and SBOMs, and publishes two
+multi-arch images, `ghcr.io/akrhin/portainer-mcp` and `ghcr.io/akrhin/arcane-mcp`
+(`:latest` and the version tag). Both are distroless and run as a non-root user.
+`v0.4.3` is out, so the quickest start is the release archive or an image. Every
+archive carries both binaries, and each image carries the binary it is named after.
 
 ```sh
 docker run -i --rm -e PORTAINER_API_KEY -v "$PWD/config.yaml:/config.yaml" \
-  ghcr.io/akrhin/portainer-mcp:v0.4.2 --config /config.yaml
-go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.4.2
-go install github.com/akrhin/portainer-mcp/cmd/arcane-mcp@v0.4.2
+  ghcr.io/akrhin/portainer-mcp:v0.4.3 --config /config.yaml
+docker run -i --rm -e ARCANE_API_KEY \
+  ghcr.io/akrhin/arcane-mcp:v0.4.3 --url https://arcane.example:3552
+go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.4.3
+go install github.com/akrhin/portainer-mcp/cmd/arcane-mcp@v0.4.3
 ```
 
-To build the image from the checkout instead, `docker build -t portainer-mcp .`.
+To build either image from the checkout instead, `docker build -t portainer-mcp .`
+and `docker build -f Dockerfile.arcane -t arcane-mcp .`. Both servers speak MCP over
+stdio, so the container needs `-i`.
 
 ## License
 

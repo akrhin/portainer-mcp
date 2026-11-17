@@ -119,6 +119,36 @@ dockers:
       - "--label=org.opencontainers.image.revision={{ .Commit }}"
       - "--label=org.opencontainers.image.licenses=MIT"
 
+  - id: arcane-amd64
+    use: buildx
+    dockerfile: Dockerfile.goreleaser.arcane
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/akrhin/arcane-mcp:{{ .Version }}-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.source=https://github.com/akrhin/portainer-mcp"
+      - "--label=org.opencontainers.image.title=arcane-mcp"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .Commit }}"
+      - "--label=org.opencontainers.image.licenses=MIT"
+
+  - id: arcane-arm64
+    use: buildx
+    dockerfile: Dockerfile.goreleaser.arcane
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/akrhin/arcane-mcp:{{ .Version }}-arm64"
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.source=https://github.com/akrhin/portainer-mcp"
+      - "--label=org.opencontainers.image.title=arcane-mcp"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .Commit }}"
+      - "--label=org.opencontainers.image.licenses=MIT"
+
 docker_manifests:
   - name_template: "ghcr.io/akrhin/portainer-mcp:{{ .Version }}"
     image_templates:
@@ -129,3 +159,13 @@ docker_manifests:
     image_templates:
       - "ghcr.io/akrhin/portainer-mcp:{{ .Version }}-amd64"
       - "ghcr.io/akrhin/portainer-mcp:{{ .Version }}-arm64"
+
+  - name_template: "ghcr.io/akrhin/arcane-mcp:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/akrhin/arcane-mcp:{{ .Version }}-amd64"
+      - "ghcr.io/akrhin/arcane-mcp:{{ .Version }}-arm64"
+
+  - name_template: "ghcr.io/akrhin/arcane-mcp:latest"
+    image_templates:
+      - "ghcr.io/akrhin/arcane-mcp:{{ .Version }}-amd64"
+      - "ghcr.io/akrhin/arcane-mcp:{{ .Version }}-arm64"

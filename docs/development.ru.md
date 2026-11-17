@@ -182,12 +182,15 @@ features, исправления, производительность, рефа
 `test`, `ci`, `style`, `build` и merge-коммиты отфильтрованы. Поэтому префиксы
 коммитов важны не только для аккуратности.
 
-Тег `v0.4.2` — текущий, поэтому архивы релиза и образ `ghcr.io/akrhin/portainer-mcp`
-существуют; локально образ собирается командой `docker build -t portainer-mcp .`.
+Тег `v0.4.3` — текущий, поэтому архивы релиза и образы `ghcr.io/akrhin/portainer-mcp`
+и `ghcr.io/akrhin/arcane-mcp` существуют. Локально образ собирается командой
+`docker build -t portainer-mcp .` или `docker build -f Dockerfile.arcane -t arcane-mcp .`;
+соответствующие стадии goreleaser — `Dockerfile.goreleaser` и
+`Dockerfile.goreleaser.arcane`, они только копируют уже собранный бинарь.
 
-Образ собирается из `golang:1.27-alpine` и работает на
-`gcr.io/distroless/static:nonroot`. `HEALTHCHECK` у него нет: по stdio процесс молчит,
-пока не придёт сообщение, и проверке живости нечего читать.
+Оба образа собираются из `golang:1.27-alpine` и работают на
+`gcr.io/distroless/static:nonroot`. `HEALTHCHECK` нет ни у одного: по stdio процесс
+молчит, пока не придёт сообщение, и проверке живости нечего читать.
 
 ## Изменение поверхности тулов
 

@@ -133,6 +133,9 @@ duration=… command="…"`, команда обрезана до 200 симво
 ```sh
 make build-arcane                       # ./arcane-mcp
 ARCANE_API_KEY=... ./arcane-mcp --url http://arcane:3552 --toolsets core,containers
+# или образ из релиза: нужен -i, транспорт stdio
+docker run -i --rm -e ARCANE_API_KEY \
+  ghcr.io/akrhin/arcane-mcp:v0.4.3 --url http://arcane:3552
 ```
 
 Файла конфигурации нет. Один процесс обслуживает один менеджер, заданный `--url`;

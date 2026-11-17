@@ -1,0 +1,8 @@
+# Used by goreleaser only: the binary is already built and cross-compiled,
+# so the image just carries it. See Dockerfile.arcane for the from-source build.
+FROM gcr.io/distroless/static:nonroot
+
+COPY arcane-mcp /arcane-mcp
+
+USER nonroot:nonroot
+ENTRYPOINT ["/arcane-mcp"]

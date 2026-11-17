@@ -131,6 +131,9 @@ duration=… command="…"`, the command cut to 200 characters.
 ```sh
 make build-arcane                       # ./arcane-mcp
 ARCANE_API_KEY=... ./arcane-mcp --url http://arcane:3552 --toolsets core,containers
+# or the release image, which needs -i because the transport is stdio
+docker run -i --rm -e ARCANE_API_KEY \
+  ghcr.io/akrhin/arcane-mcp:v0.4.3 --url http://arcane:3552
 ```
 
 There is no configuration file. One process serves one manager, given by `--url`; the

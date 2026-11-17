@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-11-17
+
+### Added
+
+- A release image for `arcane-mcp`: `ghcr.io/akrhin/arcane-mcp`, `amd64` and `arm64`
+  manifests, `:latest` and the version tag, distroless and non-root like the Portainer
+  one. Sources: `Dockerfile.arcane` and `Dockerfile.goreleaser.arcane`.
+
 ## [0.4.2] - 2026-11-17
 
 ### Documentation
@@ -201,3 +209,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.4.0]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.4.0
 [0.4.1]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.4.1
 [0.4.2]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.4.2
+[0.4.3]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.4.3

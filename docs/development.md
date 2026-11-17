@@ -178,12 +178,15 @@ features, bug fixes, performance, refactoring and documentation; `chore`, `test`
 `ci`, `style`, `build` and merge commits are filtered out. This is why commit
 prefixes matter beyond tidiness.
 
-`v0.4.2` is the current tag, so the release archives and the
-`ghcr.io/akrhin/portainer-mcp` image exist; build a local image with
-`docker build -t portainer-mcp .`.
+`v0.4.3` is the current tag, so the release archives and the
+`ghcr.io/akrhin/portainer-mcp` and `ghcr.io/akrhin/arcane-mcp` images exist. Build a
+local image with `docker build -t portainer-mcp .` or
+`docker build -f Dockerfile.arcane -t arcane-mcp .`; the equivalent goreleaser stages
+are `Dockerfile.goreleaser` and `Dockerfile.goreleaser.arcane`, which only copy the
+already-built binary.
 
-The image is built from `golang:1.27-alpine` and runs on
-`gcr.io/distroless/static:nonroot`. It has no `HEALTHCHECK`: over stdio the process
+Both images are built from `golang:1.27-alpine` and run on
+`gcr.io/distroless/static:nonroot`. Neither has a `HEALTHCHECK`: over stdio the process
 is silent until a message arrives, so a liveness probe would have nothing to read.
 
 ## Changing the tool surface
