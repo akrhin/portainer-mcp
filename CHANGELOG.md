@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-17
+
+### Documentation
+
+- Every living page now describes both binaries: the README first screen, the
+  product pages, the architecture walk, the development guide and the toolset
+  reference, with Russian mirrors kept 1:1. The old text read as if `portainer-mcp`
+  were the whole product, claimed Arcane has no container exec, and carried stale
+  version, test-count and `file:line` references.
+
 ### Fixed
 
 - `scripts/smoke-arcane.sh` defaults `SMOKE_TOOLSETS` to the six sets its fixed probe
@@ -190,3 +200,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.3.0]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.3.0
 [0.4.0]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.4.0
 [0.4.1]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.4.1
+[0.4.2]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.4.2

@@ -178,7 +178,7 @@ features, bug fixes, performance, refactoring and documentation; `chore`, `test`
 `ci`, `style`, `build` and merge commits are filtered out. This is why commit
 prefixes matter beyond tidiness.
 
-`v0.4.1` is the current tag, so the release archives and the
+`v0.4.2` is the current tag, so the release archives and the
 `ghcr.io/akrhin/portainer-mcp` image exist; build a local image with
 `docker build -t portainer-mcp .`.
 
