@@ -3,7 +3,7 @@
 # read-only calls against one agent. Fails if any call reports isError.
 #
 #   ARCANE_URL=http://arcane:3552 ARCANE_API_KEY=... [SMOKE_AGENT_ID=0] \
-#     [SMOKE_TOOLSETS=core,containers,projects,images] scripts/smoke-arcane.sh
+#     [SMOKE_TOOLSETS=core,containers,projects,images,volumes,networks] scripts/smoke-arcane.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -11,7 +11,7 @@ url="${ARCANE_URL:-}"
 [ -n "$url" ] || { echo "ARCANE_URL is required" >&2; exit 2; }
 [ -n "${ARCANE_API_KEY:-}" ] || { echo "ARCANE_API_KEY is required" >&2; exit 2; }
 agent="${SMOKE_AGENT_ID:-0}"
-toolsets="${SMOKE_TOOLSETS:-core,containers,projects,images}"
+toolsets="${SMOKE_TOOLSETS:-core,containers,projects,images,volumes,networks}"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
