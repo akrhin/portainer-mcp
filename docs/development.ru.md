@@ -182,7 +182,7 @@ features, исправления, производительность, рефа
 `test`, `ci`, `style`, `build` и merge-коммиты отфильтрованы. Поэтому префиксы
 коммитов важны не только для аккуратности.
 
-Тег `v0.4.3` — текущий, поэтому архивы релиза и образы `ghcr.io/akrhin/portainer-mcp`
+Тег `v0.4.4` — текущий, поэтому архивы релиза и образы `ghcr.io/akrhin/portainer-mcp`
 и `ghcr.io/akrhin/arcane-mcp` существуют. Локально образ собирается командой
 `docker build -t portainer-mcp .` или `docker build -f Dockerfile.arcane -t arcane-mcp .`;
 соответствующие стадии goreleaser — `Dockerfile.goreleaser` и

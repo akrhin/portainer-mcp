@@ -69,6 +69,7 @@ func run() error {
 		Toolsets:   selected,
 		ReadOnly:   *readOnly,
 		Exhaustive: *exhaustive,
+		Version:    version,
 	})
 	if err != nil {
 		return err

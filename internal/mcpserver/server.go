@@ -14,7 +14,7 @@ import (
 	"github.com/akrhin/portainer-mcp/internal/portainer"
 )
 
-// Version is reported to MCP clients.
+// Version is reported to MCP clients when Options.Version is empty.
 const Version = "0.1.0"
 
 // Options are the command-line switches that override the config, plus what
@@ -25,6 +25,8 @@ type Options struct {
 	Exhaustive bool
 	// Name is the implementation name reported to clients; portainer-mcp when empty.
 	Name string
+	// Version is the build version reported to clients; Version when empty.
+	Version string
 	// Open builds the client for one instance; Portainer when nil.
 	Open func(config.Instance) (*portainer.Client, error)
 	// AllowExec registers container_exec, which runs a command inside a
@@ -53,11 +55,15 @@ func New(cfg *config.Config, cat *catalog.Catalog, opts Options) (*mcp.Server, e
 	if name == "" {
 		name = "portainer-mcp"
 	}
+	version := opts.Version
+	if version == "" {
+		version = Version
+	}
 	env, err := newEnv(cfg.Instances, open)
 	if err != nil {
 		return nil, err
 	}
-	srv := mcp.NewServer(&mcp.Implementation{Name: name, Version: Version}, nil)
+	srv := mcp.NewServer(&mcp.Implementation{Name: name, Version: version}, nil)
 	registered := 0
 	for _, tool := range selectTools(cat, enabled, readOnly, exhaustive) {
 		h, err := handlerFor(env, cat, tool)

@@ -181,17 +181,17 @@ ARCANE_API_KEY=... ./arcane-mcp --url http://arcane:3552 --toolsets core,contain
 Релизы выходят по тегу `v*`. Workflow собирает архивы для `linux`, `darwin` и
 `windows` на `amd64` и `arm64` с контрольными суммами и SBOM, а также публикует два
 multi-arch образа: `ghcr.io/akrhin/portainer-mcp` и `ghcr.io/akrhin/arcane-mcp`
-(тег `:latest` и тег версии). Оба distroless и работают не от root. Релиз `v0.4.3`
+(тег `:latest` и тег версии). Оба distroless и работают не от root. Релиз `v0.4.4`
 вышел, поэтому быстрее всего взять архив релиза или образ: каждый архив несёт оба
 бинаря, а образ — тот, чьё имя носит.
 
 ```sh
 docker run -i --rm -e PORTAINER_API_KEY -v "$PWD/config.yaml:/config.yaml" \
-  ghcr.io/akrhin/portainer-mcp:v0.4.3 --config /config.yaml
+  ghcr.io/akrhin/portainer-mcp:v0.4.4 --config /config.yaml
 docker run -i --rm -e ARCANE_API_KEY \
-  ghcr.io/akrhin/arcane-mcp:v0.4.3 --url https://arcane.example:3552
-go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.4.3
-go install github.com/akrhin/portainer-mcp/cmd/arcane-mcp@v0.4.3
+  ghcr.io/akrhin/arcane-mcp:v0.4.4 --url https://arcane.example:3552
+go install github.com/akrhin/portainer-mcp/cmd/portainer-mcp@v0.4.4
+go install github.com/akrhin/portainer-mcp/cmd/arcane-mcp@v0.4.4
 ```
 
 Собрать образ из чекаута: `docker build -t portainer-mcp .` и

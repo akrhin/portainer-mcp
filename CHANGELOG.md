@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-11-17
+
+### Fixed
+
+- Both servers reported a hard-coded `0.1.0` as their `serverInfo` version in the
+  MCP handshake, no matter which release they came from. The build version now
+  reaches `mcpserver.Options.Version` and the handshake reports it.
+
 ## [0.4.3] - 2026-11-17
 
 ### Added
@@ -210,3 +218,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.4.1]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.4.1
 [0.4.2]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.4.2
 [0.4.3]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.4.3
+[0.4.4]: https://github.com/akrhin/portainer-mcp/releases/tag/v0.4.4

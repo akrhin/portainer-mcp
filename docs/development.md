@@ -178,7 +178,7 @@ features, bug fixes, performance, refactoring and documentation; `chore`, `test`
 `ci`, `style`, `build` and merge commits are filtered out. This is why commit
 prefixes matter beyond tidiness.
 
-`v0.4.3` is the current tag, so the release archives and the
+`v0.4.4` is the current tag, so the release archives and the
 `ghcr.io/akrhin/portainer-mcp` and `ghcr.io/akrhin/arcane-mcp` images exist. Build a
 local image with `docker build -t portainer-mcp .` or
 `docker build -f Dockerfile.arcane -t arcane-mcp .`; the equivalent goreleaser stages

@@ -64,6 +64,18 @@ func listTools(t *testing.T, srv *mcp.Server) []*mcp.Tool {
 	return res.Tools
 }
 
+func TestServerReportsBuildVersion(t *testing.T) {
+	cat, err := catalog.Load()
+	if err != nil {
+		t.Fatalf("catalog.Load: %v", err)
+	}
+	cs := connect(t, testServer(t, cat, Options{Version: "9.9.9"}))
+	info := cs.InitializeResult().ServerInfo
+	if info == nil || info.Version != "9.9.9" {
+		t.Fatalf("serverInfo = %+v, want version 9.9.9", info)
+	}
+}
+
 func TestToolsListGolden(t *testing.T) {
 	cat, err := catalog.Load()
 	if err != nil {

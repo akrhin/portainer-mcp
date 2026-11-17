@@ -77,6 +77,7 @@ func run() error {
 		ReadOnly:   *readOnly,
 		Exhaustive: *exhaustive,
 		Name:       "arcane-mcp",
+		Version:    version,
 		Open:       arcane.New,
 		AllowExec:  *allowExec,
 	})
